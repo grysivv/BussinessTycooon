@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62ba335e47aeb07419ed0fb93e995a45, type: 3}
   m_Name: Product_Wheat
   m_EditorClassIdentifier: Assembly-CSharp::ProductData
-  id: 
-  displayName: 
+  id: wheat
+  displayName: Wheat
   category: 0
-  basePrice: 0
-  elasticity: 1
-  baseDemand: 100
+  basePrice: 835
+  elasticity: 0.7
+  baseDemand: 25000
   description: 

@@ -12,4 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f117b5254566e674598d68bfbadcc303, type: 3}
   m_Name: ProductDatabase
   m_EditorClassIdentifier: Assembly-CSharp::ProductDatabase
-  _products: []
+  _products:
+  - {fileID: 11400000, guid: b6a5854184e6d8f41a080bcd23f41196, type: 2}
