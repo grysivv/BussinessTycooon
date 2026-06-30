@@ -55,3 +55,10 @@ public struct PlayerMoneyChangedEvent
     public float NewAmount;
     public float Delta;
 }
+
+public struct BuildingsConnectedEvent
+{
+    public string SourceId;
+    public string TargetId;
+    public string ProductId;
+}
