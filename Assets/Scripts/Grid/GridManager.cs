@@ -30,6 +30,9 @@ public class GridManager : MonoBehaviour
     public int GridWidth  => _gridWidth;
     public int GridHeight => _gridHeight;
 
+    private int _gridOffsetX = 0;
+    private int _gridOffsetY = 0;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -44,10 +47,21 @@ public class GridManager : MonoBehaviour
 
     // --- Inicjalizacja ---
 
-    private void InitializeGrid()
+        private void InitializeGrid()
     {
+        _terrainTilemap.CompressBounds();
+        BoundsInt bounds = _terrainTilemap.cellBounds;
+
+        _gridOffsetX = bounds.xMin;
+        _gridOffsetY = bounds.yMin;
+        _gridWidth = bounds.size.x;
+        _gridHeight = bounds.size.y;
+
         _occupiedCells = new bool[_gridWidth, _gridHeight];
-        Debug.Log($"[GridManager] Siatka {_gridWidth}x{_gridHeight} zainicjalizowana.");
+
+        Debug.Log($"[GridManager] Siatka wykryta: " +
+                 $"offset({_gridOffsetX},{_gridOffsetY}) " +
+                $"rozmiar({_gridWidth}x{_gridHeight})");
     }
 
     // --- Walidacja pozycji ---
@@ -57,8 +71,8 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public bool IsInBounds(int x, int y)
     {
-        return x >= 0 && x < _gridWidth &&
-               y >= 0 && y < _gridHeight;
+        return x >= _gridOffsetX && x < _gridOffsetX + _gridWidth &&
+        y >= _gridOffsetY && y < _gridOffsetY + _gridHeight;
     }
 
     /// <summary>
@@ -67,7 +81,7 @@ public class GridManager : MonoBehaviour
     public bool IsEmpty(int x, int y)
     {
         if (!IsInBounds(x, y)) return false;
-        return !_occupiedCells[x, y];
+        return !_occupiedCells[x - _gridOffsetX, y - _gridOffsetY];
     }
 
     /// <summary>
@@ -75,7 +89,11 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public bool CanPlaceBuilding(int x, int y)
     {
-        return IsInBounds(x, y) && IsEmpty(x, y);
+        if (!IsInBounds(x, y)) return false;
+        if (!IsEmpty(x, y)) return false;
+
+        TileBase tille = _terrainTilemap.GetTile(new Vector3Int(x, y, 0));
+        return tille != null; // Można stawiać tylko na kafelkach terenu
     }
 
     // --- Zajmowanie i zwalnianie kafelków ---
@@ -90,15 +108,8 @@ public class GridManager : MonoBehaviour
             Debug.LogWarning($"[GridManager] Nie można zająć ({x},{y})");
             return false;
         }
-
-        _occupiedCells[x, y] = true;
-
-        EventBus.Publish(new BuildingPlacedEvent
-        {
-            GridX = x,
-            GridY = y
-        });
-
+        _occupiedCells[x - _gridOffsetX, y - _gridOffsetY] = true;
+        EventBus.Publish(new BuildingPlacedEvent { GridX = x, GridY = y });
         return true;
     }
 
@@ -109,21 +120,13 @@ public class GridManager : MonoBehaviour
     {
         if (!IsInBounds(x, y))
         {
-            Debug.LogWarning($"[GridManager] Pozycja ({x},{y}) poza siatką");
-            return false;
+        Debug.LogWarning($"[GridManager] Pozycja ({x},{y}) poza siatką");
+        return false;
         }
-
-        _occupiedCells[x, y] = false;
-
-        EventBus.Publish(new BuildingRemovedEvent
-        {
-            GridX = x,
-            GridY = y
-        });
-
+        _occupiedCells[x - _gridOffsetX, y - _gridOffsetY] = false;
+        EventBus.Publish(new BuildingRemovedEvent { GridX = x, GridY = y });
         return true;
     }
-
     // --- Konwersja współrzędnych ---
 
     /// <summary>
