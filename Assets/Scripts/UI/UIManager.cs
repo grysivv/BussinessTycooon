@@ -27,6 +27,9 @@ public class UIManager : MonoBehaviour
     private Label _incomeLabel;
     private Label _tickLabel;
 
+    // Aktualnie wybrany budynek (do panelu info)
+    private Building _currentSelectedBuilding;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -65,6 +68,8 @@ public class UIManager : MonoBehaviour
         EventBus.Subscribe<TickEvent>(OnTick);
         EventBus.Subscribe<BuildingSelectedEvent>(OnBuildingSelected);
         EventBus.Subscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
+        EventBus.Subscribe<ProductionCompletedEvent>(OnProductionCompleted);
+        EventBus.Subscribe<TimeUpdatedEvent>(OnTimeUpdated);
     }
 
     void OnDisable()
@@ -73,6 +78,8 @@ public class UIManager : MonoBehaviour
         EventBus.Unsubscribe<TickEvent>(OnTick);
         EventBus.Unsubscribe<BuildingSelectedEvent>(OnBuildingSelected);
         EventBus.Unsubscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
+        EventBus.Unsubscribe<ProductionCompletedEvent>(OnProductionCompleted);
+        EventBus.Unsubscribe<TimeUpdatedEvent>(OnTimeUpdated);
     }
 
     // --- Budowanie stylów globalnych ---
@@ -296,16 +303,18 @@ public class UIManager : MonoBehaviour
 
     private void OnTick(TickEvent e)
     {
-        if (_tickLabel == null) return;
-        _tickLabel.text = $"Tick: {e.TickNumber}";
+        // Aktualizacja przychodów
+        if (_currentSelectedBuilding != null)
+            UpdateBuildingInfoPanel(_currentSelectedBuilding);
     }
 
     private void OnBuildingSelected(BuildingSelectedEvent e)
     {
+        _currentSelectedBuilding = e.Building;
         _buildingInfoPanel.style.display = DisplayStyle.Flex;
         UpdateBuildingInfoPanel(e.Building);
-        _buildingInfoPanel.style.display = DisplayStyle.Flex;
     }
+
     private void UpdateBuildingInfoPanel(Building building)
     {
         _buildingInfoPanel.Clear();
@@ -432,15 +441,26 @@ public class UIManager : MonoBehaviour
 
     }
 
+    private void OnTimeUpdated(TimeUpdatedEvent e)
+    {
+        if (_tickLabel == null) return;
+        _tickLabel.text = e.DateString;
+    }
+
     private void OnBuildingDeselected(BuildingDeselectedEvent e)
     {
+        _currentSelectedBuilding = null;
         _buildingInfoPanel.style.display = DisplayStyle.None;
     }
 
     private void OnSpeedButtonClicked(float speed)
     {
         GameManager.Instance?.SetGameSpeed(speed);
-        Debug.Log($"[UIManager] Prędkość: x{speed}");
+    }
+    private void OnProductionCompleted(ProductionCompletedEvent e)
+    {
+        if (_currentSelectedBuilding == null) return;
+        UpdateBuildingInfoPanel(_currentSelectedBuilding);
     }
 
     // --- Publiczne metody ---
@@ -455,4 +475,5 @@ public class UIManager : MonoBehaviour
     {
         _buildingInfoPanel.style.display = DisplayStyle.None;
     }
+    
 }

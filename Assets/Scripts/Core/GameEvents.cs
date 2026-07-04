@@ -63,3 +63,26 @@ public struct BuildingSelectedEvent
     public int GridY;
     public Building Building;
 }
+// --- Czas ---
+public struct TimeUpdatedEvent
+{
+    public int Hour;
+    public int Day;
+    public int Month;
+    public int Year;
+    public string DateString;
+}
+
+public struct MonthPassedEvent
+{
+    public int Month;
+    public int Year;
+}
+
+public struct MaintenancePaidEvent
+{
+    public float TotalCost;
+    public int Month;
+    public int Year;
+    public bool Success;
+}
