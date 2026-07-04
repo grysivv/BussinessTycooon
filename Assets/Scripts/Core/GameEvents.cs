@@ -20,12 +20,6 @@ public struct BuildingRemovedEvent
     public int GridY;
 }
 
-public struct BuildingSelectedEvent
-{
-    public int GridX;
-    public int GridY;
-}
-
 public struct BuildingDeselectedEvent { }
 
 // --- Produkcja ---
@@ -61,4 +55,11 @@ public struct BuildingsConnectedEvent
     public string SourceId;
     public string TargetId;
     public string ProductId;
+}
+
+public struct BuildingSelectedEvent
+{
+    public int GridX;
+    public int GridY;
+    public Building Building;
 }

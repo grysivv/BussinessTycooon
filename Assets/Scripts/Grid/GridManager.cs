@@ -69,6 +69,15 @@ public class GridManager : MonoBehaviour
     /// <summary>
     /// Czy pozycja jest w granicach siatki?
     /// </summary>
+    public Bounds GetTerrainBounds()
+    {
+        if (_terrainTilemap == null) return new Bounds();
+
+        _terrainTilemap.CompressBounds();
+        return _terrainTilemap.localBounds;
+    } 
+     
+    
     public bool IsInBounds(int x, int y)
     {
         return x >= _gridOffsetX && x < _gridOffsetX + _gridWidth &&

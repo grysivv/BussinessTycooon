@@ -302,8 +302,134 @@ public class UIManager : MonoBehaviour
 
     private void OnBuildingSelected(BuildingSelectedEvent e)
     {
-        // Na razie puste — wypełnimy gdy klikanie na budynki będzie gotowe
         _buildingInfoPanel.style.display = DisplayStyle.Flex;
+        UpdateBuildingInfoPanel(e.Building);
+        _buildingInfoPanel.style.display = DisplayStyle.Flex;
+    }
+    private void UpdateBuildingInfoPanel(Building building)
+    {
+        _buildingInfoPanel.Clear();
+
+        if (building == null) return;
+
+        // Nagłówek
+        var header = new VisualElement();
+        header.style.marginBottom = 10;
+
+        var typeLabel = new Label(GetBuildingType(building));
+        typeLabel.style.color = new Color(0.5f, 0.65f, 0.8f);
+        typeLabel.style.fontSize = 11;
+
+        var nameLabel = new Label(building.DisplayName);
+        nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        nameLabel.style.fontSize = 16;
+        nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+        var posLabel = new Label($"({building.GridX}, {building.GridY})");
+        posLabel.style.color = new Color(0.5f, 0.6f, 0.7f);
+        posLabel.style.fontSize = 11;
+
+        header.Add(typeLabel);
+        header.Add(nameLabel);
+        header.Add(posLabel);
+        _buildingInfoPanel.Add(header);
+
+        AddSeparator();
+
+    // Dane produkcji
+        var pb = building as ProductionBuilding;
+        if (pb != null && pb.Recipe != null)
+        {
+            AddSectionLabel("PRODUKCJA");
+            AddInfoRow("Produkt", pb.Recipe.outputProductId);
+            AddInfoRow("Tempo", $"{pb.Recipe.outputAmount} j / {pb.Recipe.productionTimeTicks} tick");
+            AddInfoRow("Magazyn", $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j");
+
+            if (pb.Recipe.inputs.Count > 0)
+            {
+                AddSeparator();
+                AddSectionLabel("SUROWCE");
+                foreach (var input in pb.Recipe.inputs)
+                    AddInfoRow(input.productId, $"{pb.GetAvailableFromPool(input.productId):F0} dostępne");
+            }    
+
+            AddSeparator();
+            AddInfoRow("Połączenia", $"{pb.ConnectedBuildings.Count}");
+        }
+
+        AddSeparator();
+
+    // Ekonomia
+        AddSectionLabel("EKONOMIA");
+        AddInfoRow("Koszt budowy", $"${building.ConstructionCost:F0}");
+        AddInfoRow("Utrzymanie", $"${building.MonthlyMaintenance:F0}/mies.");
+        AddInfoRow("Poziom", $"{building.Level}");
+
+    // Przycisk zamknięcia
+        var closeBtn = new Button(() => {
+            _buildingInfoPanel.style.display = DisplayStyle.None;
+        });
+        closeBtn.text = "✕ Zamknij";
+        closeBtn.style.marginTop = 12;
+        closeBtn.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
+        closeBtn.style.color = new Color(0.7f, 0.75f, 0.85f);
+        closeBtn.style.borderTopWidth = 0;
+        closeBtn.style.borderBottomWidth = 0;
+        closeBtn.style.borderLeftWidth = 0;
+        closeBtn.style.borderRightWidth = 0;
+        closeBtn.style.height = 28;
+        _buildingInfoPanel.Add(closeBtn);
+    }
+
+    private string GetBuildingType(Building building)
+    {
+        if (building is ProductionBuilding pb && pb.Recipe != null)
+        {
+            var category = pb.Recipe.outputProductId;
+            return "Budynek produkcyjny";
+        }
+        return "Budynek";
+    }
+
+    private void AddSeparator()
+    {
+        var sep = new VisualElement();
+        sep.style.height = 1;
+        sep.style.backgroundColor = new Color(0.2f, 0.27f, 0.4f);
+        sep.style.marginTop = 8;
+        sep.style.marginBottom = 8;
+        _buildingInfoPanel.Add(sep);
+    }
+
+    private void AddSectionLabel(string text)
+    {
+        var label = new Label(text);
+        label.style.color = new Color(0.45f, 0.58f, 0.75f);
+        label.style.fontSize = 10;
+        label.style.marginBottom = 5;
+        _buildingInfoPanel.Add(label);
+    }
+
+    private void AddInfoRow(string labelText, string valueText)
+    {
+        var row = new VisualElement();
+        row.style.flexDirection = FlexDirection.Row;
+        row.style.justifyContent = Justify.SpaceBetween;
+        row.style.marginBottom = 4;
+
+        var lbl = new Label(labelText);
+        lbl.style.color = new Color(0.55f, 0.65f, 0.75f);
+        lbl.style.fontSize = 12;
+
+        var val = new Label(valueText);
+        val.style.color = new Color(0.9f, 0.95f, 1f);
+        val.style.fontSize = 12;
+        val.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+        row.Add(lbl);
+        row.Add(val);
+        _buildingInfoPanel.Add(row);
+
     }
 
     private void OnBuildingDeselected(BuildingDeselectedEvent e)

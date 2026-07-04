@@ -165,6 +165,52 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EconomyManager
   _productDatabase: {fileID: 11400000, guid: 73bf19a261771f747baee17b65e4bef6, type: 2}
   _playerMoney: 100000
+--- !u!1 &182307979
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 182307980}
+  - component: {fileID: 182307981}
+  m_Layer: 0
+  m_Name: BuildingSelector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &182307980
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 182307979}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 603762084}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &182307981
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 182307979}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd1735b72312c7a4bb58cac2eda17432, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingSelector
+  _mainCamera: {fileID: 1633760780}
+  _selectionColor: {r: 0.06132078, g: 0.08865453, b: 1, a: 1}
 --- !u!1 &417609467
 GameObject:
   m_ObjectHideFlags: 0
@@ -309,6 +355,7 @@ Transform:
   - {fileID: 580649667}
   - {fileID: 2042399342}
   - {fileID: 822776724}
+  - {fileID: 182307980}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &765230178
@@ -941,9 +988,10 @@ GameObject:
   - component: {fileID: 1633760781}
   - component: {fileID: 1633760780}
   - component: {fileID: 1633760779}
+  - component: {fileID: 1633760782}
   m_Layer: 0
   m_Name: Camera
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1023,6 +1071,28 @@ Transform:
   - {fileID: 1734438895}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1633760782
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1633760778}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2c0d584e849599438581613c11a8016, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapCameraController
+  _camera: {fileID: 1633760780}
+  _gridManager: {fileID: 1317029431}
+  _keyboardSpeed: 5
+  _dragSpeed: 1
+  _zoomSpeed: 1
+  _minZoom: 3
+  _maxZoom: 15
+  _mapBounds:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
 --- !u!1 &1645708652
 GameObject:
   m_ObjectHideFlags: 0

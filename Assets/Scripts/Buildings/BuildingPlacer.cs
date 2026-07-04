@@ -62,6 +62,8 @@ public class BuildingPlacer : MonoBehaviour
         }
     }
 
+    
+
     // --- Rozpoczęcie trybu stawiania ---
 
     public void StartPlacing(BuildingData buildingData)
@@ -155,8 +157,10 @@ public class BuildingPlacer : MonoBehaviour
          if (_previewInstance != null)
             Destroy(_previewInstance);
 
-        var building = buildingInstance.GetComponent<Building>();
-        building.Initialize(
+        var productionBuilding = buildingInstance.GetComponent<ProductionBuilding>();
+        if (productionBuilding != null)
+        {
+        productionBuilding.Initialize(
             _selectedBuilding.id,
             _selectedBuilding.displayName,
             gridPos.x,
@@ -165,12 +169,22 @@ public class BuildingPlacer : MonoBehaviour
             _selectedBuilding.demolitionCost,
             _selectedBuilding.monthlyMaintenance
         );
-
-        var productionBuilding = buildingInstance.GetComponent<ProductionBuilding>();
-        if (productionBuilding != null && _selectedBuilding.recipe != null)
-        {
+        if (_selectedBuilding.recipe != null)
             productionBuilding.InitializeProduction(_selectedBuilding.recipe, _productDatabase);
         }
+else
+{
+    var building = buildingInstance.GetComponent<Building>();
+    building?.Initialize(
+        _selectedBuilding.id,
+        _selectedBuilding.displayName,
+        gridPos.x,
+        gridPos.y,
+        _selectedBuilding.constructionCost,
+        _selectedBuilding.demolitionCost,
+        _selectedBuilding.monthlyMaintenance
+    );
+}
 
         Debug.Log($"[BuildingPlacer] Postawiono: {_selectedBuilding.displayName} " +
                   $"na ({gridPos.x},{gridPos.y})");
