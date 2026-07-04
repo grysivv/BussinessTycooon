@@ -1,0 +1,332 @@
+using UnityEngine;
+using UnityEngine.UIElements;
+
+/// <summary>
+/// Centralny zarządca UI. Jedyny punkt otwierania i zamykania paneli.
+/// Buduje całe UI programowo przez kod C# — bez plików UXML/USS.
+/// </summary>
+public class UIManager : MonoBehaviour
+{
+    public static UIManager Instance { get; private set; }
+
+    [Header("Referencje")]
+    [SerializeField] private UIDocument _uiDocument;
+    [SerializeField] private BuildingDatabase _buildingDatabase;
+    [SerializeField] private BuildingPlacer _buildingPlacer;
+
+    // Root element całego UI
+    private VisualElement _root;
+
+    // Panele
+    private VisualElement _hudPanel;
+    private VisualElement _buildMenuPanel;
+    private VisualElement _buildingInfoPanel;
+
+    // Elementy HUD
+    private Label _moneyLabel;
+    private Label _incomeLabel;
+    private Label _tickLabel;
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
+    // Znajdź UIDocument automatycznie na tym samym obiekcie
+        if (_uiDocument == null)
+            _uiDocument = GetComponent<UIDocument>();
+
+        if (_uiDocument == null)
+        {
+            Debug.LogError("[UIManager] Brak UIDocument na tym obiekcie!");
+        }
+    }
+
+    void Start()
+    {
+        _root = _uiDocument.rootVisualElement;
+        _root.Clear();
+
+        BuildStyles();
+        BuildHUD();
+        BuildBuildMenu();
+        BuildBuildingInfoPanel();
+
+        Debug.Log("[UIManager] UI zbudowane.");
+    }
+
+    void OnEnable()
+    {
+        EventBus.Subscribe<PlayerMoneyChangedEvent>(OnMoneyChanged);
+        EventBus.Subscribe<TickEvent>(OnTick);
+        EventBus.Subscribe<BuildingSelectedEvent>(OnBuildingSelected);
+        EventBus.Subscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
+    }
+
+    void OnDisable()
+    {
+        EventBus.Unsubscribe<PlayerMoneyChangedEvent>(OnMoneyChanged);
+        EventBus.Unsubscribe<TickEvent>(OnTick);
+        EventBus.Unsubscribe<BuildingSelectedEvent>(OnBuildingSelected);
+        EventBus.Unsubscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
+    }
+
+    // --- Budowanie stylów globalnych ---
+
+    private void BuildStyles()
+    {
+        // Globalne style przez USS string — aplikowane do roota
+        _root.style.width = Length.Percent(100);
+        _root.style.height = Length.Percent(100);
+        _root.style.flexDirection = FlexDirection.Column;
+        _root.style.justifyContent = Justify.SpaceBetween;
+    }
+
+    // --- HUD (górny pasek) ---
+
+    private void BuildHUD()
+    {
+        _hudPanel = new VisualElement();
+        _hudPanel.style.flexDirection = FlexDirection.Row;
+        _hudPanel.style.justifyContent = Justify.SpaceBetween;
+        _hudPanel.style.alignItems = Align.Center;
+        _hudPanel.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.92f);
+        _hudPanel.style.paddingLeft = 16;
+        _hudPanel.style.paddingRight = 16;
+        _hudPanel.style.paddingTop = 8;
+        _hudPanel.style.paddingBottom = 8;
+        _hudPanel.style.height = 48;
+
+        // Lewa strona: pieniądze
+        var leftGroup = new VisualElement();
+        leftGroup.style.flexDirection = FlexDirection.Row;
+        leftGroup.style.alignItems = Align.Center;
+
+        _moneyLabel = new Label("$50 000");
+        _moneyLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _moneyLabel.style.fontSize = 18;
+        _moneyLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        _moneyLabel.style.marginRight = 24;
+
+        _incomeLabel = new Label("+$0/tick");
+        _incomeLabel.style.color = new Color(0.3f, 0.85f, 0.5f);
+        _incomeLabel.style.fontSize = 13;
+
+        leftGroup.Add(_moneyLabel);
+        leftGroup.Add(_incomeLabel);
+
+        // Prawa strona: czas i kontrola prędkości
+        var rightGroup = new VisualElement();
+        rightGroup.style.flexDirection = FlexDirection.Row;
+        rightGroup.style.alignItems = Align.Center;
+
+        _tickLabel = new Label("Tick: 0");
+        _tickLabel.style.color = new Color(0.6f, 0.7f, 0.8f);
+        _tickLabel.style.fontSize = 13;
+        _tickLabel.style.marginRight = 16;
+
+        // Przyciski prędkości
+        var speedGroup = new VisualElement();
+        speedGroup.style.flexDirection = FlexDirection.Row;
+
+        foreach (var (label, speed) in new (string, float)[]
+            { ("⏸", 0f), ("×1", 1f), ("×3", 3f) })
+        {
+            var btn = CreateSpeedButton(label, speed);
+            speedGroup.Add(btn);
+        }
+
+        rightGroup.Add(_tickLabel);
+        rightGroup.Add(speedGroup);
+
+        _hudPanel.Add(leftGroup);
+        _hudPanel.Add(rightGroup);
+        _root.Add(_hudPanel);
+    }
+
+    private Button CreateSpeedButton(string label, float speed)
+    {
+        var btn = new Button(() => OnSpeedButtonClicked(speed));
+        btn.text = label;
+        btn.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
+        btn.style.color = new Color(0.8f, 0.85f, 0.9f);
+        btn.style.borderTopWidth = 1;
+        btn.style.borderBottomWidth = 1;
+        btn.style.borderLeftWidth = 1;
+        btn.style.borderRightWidth = 1;
+        btn.style.borderTopColor = new Color(0.25f, 0.32f, 0.48f);
+        btn.style.borderBottomColor = new Color(0.25f, 0.32f, 0.48f);
+        btn.style.borderLeftColor = new Color(0.25f, 0.32f, 0.48f);
+        btn.style.borderRightColor = new Color(0.25f, 0.32f, 0.48f);
+        btn.style.marginLeft = 4;
+        btn.style.paddingLeft = 10;
+        btn.style.paddingRight = 10;
+        btn.style.height = 28;
+        btn.style.borderTopLeftRadius = 4;
+        btn.style.borderTopRightRadius = 4;
+        btn.style.borderBottomLeftRadius = 4;
+        btn.style.borderBottomRightRadius = 4;
+        return btn;
+    }
+
+    // --- Build Menu (dolny pasek) ---
+
+    private void BuildBuildMenu()
+    {
+        _buildMenuPanel = new VisualElement();
+        _buildMenuPanel.style.flexDirection = FlexDirection.Row;
+        _buildMenuPanel.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.92f);
+        _buildMenuPanel.style.paddingLeft = 12;
+        _buildMenuPanel.style.paddingRight = 12;
+        _buildMenuPanel.style.paddingTop = 8;
+        _buildMenuPanel.style.paddingBottom = 8;
+        _buildMenuPanel.style.height = 90;
+        _buildMenuPanel.style.alignItems = Align.Center;
+
+        if (_buildingDatabase == null)
+        {
+            Debug.LogWarning("[UIManager] Brak BuildingDatabase!");
+            _root.Add(_buildMenuPanel);
+            return;
+        }
+
+        foreach (var buildingData in _buildingDatabase.AllBuildings)
+        {
+            var btn = CreateBuildingButton(buildingData);
+            _buildMenuPanel.Add(btn);
+        }
+
+        _root.Add(_buildMenuPanel);
+    }
+
+    private VisualElement CreateBuildingButton(BuildingData data)
+    {
+        var container = new VisualElement();
+        container.style.flexDirection = FlexDirection.Column;
+        container.style.alignItems = Align.Center;
+        container.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
+        container.style.borderTopWidth = 1;
+        container.style.borderBottomWidth = 1;
+        container.style.borderLeftWidth = 1;
+        container.style.borderRightWidth = 1;
+        container.style.borderTopColor = new Color(0.25f, 0.32f, 0.48f);
+        container.style.borderBottomColor = new Color(0.25f, 0.32f, 0.48f);
+        container.style.borderLeftColor = new Color(0.25f, 0.32f, 0.48f);
+        container.style.borderRightColor = new Color(0.25f, 0.32f, 0.48f);
+        container.style.borderTopLeftRadius = 6;
+        container.style.borderTopRightRadius = 6;
+        container.style.borderBottomLeftRadius = 6;
+        container.style.borderBottomRightRadius = 6;
+        container.style.paddingLeft = 10;
+        container.style.paddingRight = 10;
+        container.style.paddingTop = 6;
+        container.style.paddingBottom = 6;
+        container.style.marginRight = 8;
+        container.style.width = 90;
+
+        var nameLabel = new Label(data.displayName);
+        nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        nameLabel.style.fontSize = 12;
+        nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        nameLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+        nameLabel.style.marginTop = 6;
+
+        var costLabel = new Label($"${data.constructionCost:F0}");
+        costLabel.style.color = new Color(0.3f, 0.85f, 0.5f);
+        costLabel.style.fontSize = 11;
+        costLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+        container.Add(nameLabel);
+        container.Add(costLabel);
+
+        // Kliknięcie uruchamia tryb stawiania
+        container.RegisterCallback<ClickEvent>(evt =>
+        {
+            _buildingPlacer?.StartPlacing(data);
+        });
+
+        // Hover effect
+        container.RegisterCallback<MouseEnterEvent>(evt =>
+        {
+            container.style.backgroundColor = new Color(0.18f, 0.24f, 0.38f);
+        });
+        container.RegisterCallback<MouseLeaveEvent>(evt =>
+        {
+            container.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
+        });
+
+        return container;
+    }
+
+    // --- Building Info Panel (prawy panel) ---
+
+    private void BuildBuildingInfoPanel()
+    {
+        _buildingInfoPanel = new VisualElement();
+        _buildingInfoPanel.style.position = Position.Absolute;
+        _buildingInfoPanel.style.right = 0;
+        _buildingInfoPanel.style.top = 48;
+        _buildingInfoPanel.style.bottom = 90;
+        _buildingInfoPanel.style.width = 220;
+        _buildingInfoPanel.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.92f);
+        _buildingInfoPanel.style.paddingLeft = 14;
+        _buildingInfoPanel.style.paddingRight = 14;
+        _buildingInfoPanel.style.paddingTop = 14;
+        _buildingInfoPanel.style.display = DisplayStyle.None;
+
+        _root.Add(_buildingInfoPanel);
+    }
+
+    // --- Aktualizacja paneli ---
+
+    private void OnMoneyChanged(PlayerMoneyChangedEvent e)
+    {
+        if (_moneyLabel == null) return;
+        _moneyLabel.text = $"${e.NewAmount:F0}";
+
+        // Kolor czerwony gdy mało pieniędzy
+        _moneyLabel.style.color = e.NewAmount < 5000
+            ? new Color(0.9f, 0.3f, 0.3f)
+            : new Color(0.9f, 0.95f, 1f);
+    }
+
+    private void OnTick(TickEvent e)
+    {
+        if (_tickLabel == null) return;
+        _tickLabel.text = $"Tick: {e.TickNumber}";
+    }
+
+    private void OnBuildingSelected(BuildingSelectedEvent e)
+    {
+        // Na razie puste — wypełnimy gdy klikanie na budynki będzie gotowe
+        _buildingInfoPanel.style.display = DisplayStyle.Flex;
+    }
+
+    private void OnBuildingDeselected(BuildingDeselectedEvent e)
+    {
+        _buildingInfoPanel.style.display = DisplayStyle.None;
+    }
+
+    private void OnSpeedButtonClicked(float speed)
+    {
+        GameManager.Instance?.SetGameSpeed(speed);
+        Debug.Log($"[UIManager] Prędkość: x{speed}");
+    }
+
+    // --- Publiczne metody ---
+
+    public void ShowBuildingInfo(Building building)
+    {
+        // Wypełnimy szczegółami w kolejnym kroku
+        _buildingInfoPanel.style.display = DisplayStyle.Flex;
+    }
+
+    public void HideBuildingInfo()
+    {
+        _buildingInfoPanel.style.display = DisplayStyle.None;
+    }
+}
