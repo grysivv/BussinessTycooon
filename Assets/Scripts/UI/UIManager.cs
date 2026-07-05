@@ -22,6 +22,8 @@ public class UIManager : MonoBehaviour
     private VisualElement _hudPanel;
     private VisualElement _buildMenuPanel;
     private VisualElement _buildingInfoPanel;
+    // Przewijalny kontener na treść panelu info — zapobiega ściskaniu i nachodzeniu elementów
+    private ScrollView _infoBody;
 
     // Elementy HUD
     private Label _moneyLabel;
@@ -34,7 +36,6 @@ public class UIManager : MonoBehaviour
 
     private Label _panelStorageLabel;
     private Label _panelConnectionsLabel;
-    private Label _panelProductLabel;
     private Label _panelMarginLabel;
     private Label _panelPaybackLabel;
     private Label _panelMonthlyProfitLabel;
@@ -333,6 +334,12 @@ public class UIManager : MonoBehaviour
 
         if (building == null) return;
 
+        // Cała treść trafia do ScrollView, żeby przy nadmiarze elementów
+        // panel się przewijał zamiast ściskać i nakładać etykiety na siebie.
+        _infoBody = new ScrollView(ScrollViewMode.Vertical);
+        _infoBody.style.flexGrow = 1;
+        _buildingInfoPanel.Add(_infoBody);
+
         // Nagłówek
         var header = new VisualElement();
         header.style.marginBottom = 10;
@@ -353,7 +360,7 @@ public class UIManager : MonoBehaviour
         header.Add(typeLabel);
         header.Add(nameLabel);
         header.Add(posLabel);
-        _buildingInfoPanel.Add(header);
+        _infoBody.Add(header);
 
         AddSeparator();
 
@@ -377,7 +384,7 @@ public class UIManager : MonoBehaviour
             _panelStorageLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             storageRow.Add(storageLbl);
             storageRow.Add(_panelStorageLabel);
-            _buildingInfoPanel.Add(storageRow);
+            _infoBody.Add(storageRow);
 
             if (pb.Recipe.inputs.Count > 0)
             {
@@ -401,7 +408,7 @@ public class UIManager : MonoBehaviour
             _panelConnectionsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             connRow.Add(connLbl);
             connRow.Add(_panelConnectionsLabel);
-            _buildingInfoPanel.Add(connRow);
+            _infoBody.Add(connRow);
         }
 
         AddSeparator();
@@ -445,7 +452,7 @@ public class UIManager : MonoBehaviour
 
             priceRow.Add(priceLabel);
             priceRow.Add(priceField);
-            _buildingInfoPanel.Add(priceRow);
+            _infoBody.Add(priceRow);
 
             var autoSellRow = new VisualElement();
             autoSellRow.style.flexDirection = FlexDirection.Row;
@@ -460,7 +467,7 @@ public class UIManager : MonoBehaviour
                 pb.SetAutoSell(evt.newValue);
             });
 
-            _buildingInfoPanel.Add(autoSellToggle);
+            _infoBody.Add(autoSellToggle);
 
             // Przycisk sprzedaży
             var sellBtn = new Button(() => 
@@ -480,7 +487,7 @@ public class UIManager : MonoBehaviour
             sellBtn.style.borderBottomWidth = 0;
             sellBtn.style.borderLeftWidth = 0;
             sellBtn.style.borderRightWidth = 0;
-            _buildingInfoPanel.Add(sellBtn);
+            _infoBody.Add(sellBtn);
         }
 
         AddSeparator();
@@ -490,26 +497,26 @@ public class UIManager : MonoBehaviour
         _panelMarginLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelMarginLabel.style.fontSize = 12;
         _panelMarginLabel.style.marginBottom = 4;
-        _buildingInfoPanel.Add(_panelMarginLabel);
+        _infoBody.Add(_panelMarginLabel);
 
         _panelPaybackLabel = new Label("Payback: N/A");
         _panelPaybackLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelPaybackLabel.style.fontSize = 12;
         _panelPaybackLabel.style.marginBottom = 4;
-        _buildingInfoPanel.Add(_panelPaybackLabel);
+        _infoBody.Add(_panelPaybackLabel);
 
         _panelMonthlyProfitLabel = new Label("Monthly Profit: N/A");
         _panelMonthlyProfitLabel.style.color = new Color(0.4f, 0.95f, 0.5f);
         _panelMonthlyProfitLabel.style.fontSize = 12;
         _panelMonthlyProfitLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         _panelMonthlyProfitLabel.style.marginBottom = 4;
-        _buildingInfoPanel.Add(_panelMonthlyProfitLabel);
+        _infoBody.Add(_panelMonthlyProfitLabel);
 
         _panelAvgThroughputLabel = new Label("Avg Output: N/A items/tick");
         _panelAvgThroughputLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelAvgThroughputLabel.style.fontSize = 12;
         _panelAvgThroughputLabel.style.marginBottom = 8;
-        _buildingInfoPanel.Add(_panelAvgThroughputLabel);
+        _infoBody.Add(_panelAvgThroughputLabel);
 
         // Price Slider
         AddSeparator();
@@ -517,18 +524,18 @@ public class UIManager : MonoBehaviour
         priceSliderLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
         priceSliderLabel.style.fontSize = 11;
         priceSliderLabel.style.marginBottom = 4;
-        _buildingInfoPanel.Add(priceSliderLabel);
+        _infoBody.Add(priceSliderLabel);
 
         _panelPriceSlider = new Slider(0f, 500f, SliderDirection.Horizontal);
         _panelPriceSlider.style.marginBottom = 4;
-        _buildingInfoPanel.Add(_panelPriceSlider);
+        _infoBody.Add(_panelPriceSlider);
 
         _panelPriceValueLabel = new Label("$0.00");
         _panelPriceValueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
         _panelPriceValueLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelPriceValueLabel.style.fontSize = 12;
         _panelPriceValueLabel.style.marginBottom = 8;
-        _buildingInfoPanel.Add(_panelPriceValueLabel);
+        _infoBody.Add(_panelPriceValueLabel);
 
          _panelPriceSlider.RegisterValueChangedCallback(evt =>
         {
@@ -553,7 +560,7 @@ public class UIManager : MonoBehaviour
         closeBtn.style.borderLeftWidth = 0;
         closeBtn.style.borderRightWidth = 0;
         closeBtn.style.height = 28;
-        _buildingInfoPanel.Add(closeBtn);
+        _infoBody.Add(closeBtn);
     }
 
     private void RefreshBuildingInfoPanel(Building building)
@@ -568,17 +575,16 @@ public class UIManager : MonoBehaviour
 
         var pb = building as ProductionBuilding;
 
-        // Podstawowe info
-        if (pb != null && pb.Recipe != null)
+        // Podstawowe info — tylko wartość (etykieta "Magazyn"/"Połączenia" jest osobno w wierszu)
+        if (pb != null && pb.Recipe != null && _panelStorageLabel != null)
         {
-            _panelStorageLabel.text = 
-                $"Magazyn: {pb.GetStorageAmount(pb.Recipe.outputProductId):F1} / {pb.StorageCapacity:F1}";
-            _panelConnectionsLabel.text = $"Połączenia: {pb.ConnectedBuildings.Count}";
+            _panelStorageLabel.text =
+                $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j";
+            _panelConnectionsLabel.text = $"{pb.ConnectedBuildings.Count}";
         }
 
         // Ekonomia
         float monthlyCost = building.GetMonthlyCost();
-        _panelProductLabel.text = $"Koszt mies: ${monthlyCost:F2}";
 
         if (pb != null && pb.Recipe != null)
         {
@@ -651,7 +657,7 @@ public class UIManager : MonoBehaviour
         sep.style.backgroundColor = new Color(0.2f, 0.27f, 0.4f);
         sep.style.marginTop = 8;
         sep.style.marginBottom = 8;
-        _buildingInfoPanel.Add(sep);
+        _infoBody.Add(sep);
     }
 
     private void AddSectionLabel(string text)
@@ -660,7 +666,7 @@ public class UIManager : MonoBehaviour
         label.style.color = new Color(0.45f, 0.58f, 0.75f);
         label.style.fontSize = 10;
         label.style.marginBottom = 5;
-        _buildingInfoPanel.Add(label);
+        _infoBody.Add(label);
     }
 
     private void AddInfoRow(string labelText, string valueText)
@@ -681,7 +687,7 @@ public class UIManager : MonoBehaviour
 
         row.Add(lbl);
         row.Add(val);
-        _buildingInfoPanel.Add(row);
+        _infoBody.Add(row);
 
     }
 
