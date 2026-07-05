@@ -35,6 +35,12 @@ public class UIManager : MonoBehaviour
     private Label _panelStorageLabel;
     private Label _panelConnectionsLabel;
     private Label _panelProductLabel;
+    private Label _panelMarginLabel;
+    private Label _panelPaybackLabel;
+    private Label _panelMonthlyProfitLabel;
+    private Label _panelAvgThroughputLabel;
+    private Slider _panelPriceSlider;
+    private Label _panelPriceValueLabel;
 
     void Awake()
     {
@@ -477,6 +483,63 @@ public class UIManager : MonoBehaviour
             _buildingInfoPanel.Add(sellBtn);
         }
 
+        AddSeparator();
+        AddSectionLabel("ANALYTICS");
+
+        _panelMarginLabel = new Label("Marża: N/A");
+        _panelMarginLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _panelMarginLabel.style.fontSize = 12;
+        _panelMarginLabel.style.marginBottom = 4;
+        _buildingInfoPanel.Add(_panelMarginLabel);
+
+        _panelPaybackLabel = new Label("Payback: N/A");
+        _panelPaybackLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _panelPaybackLabel.style.fontSize = 12;
+        _panelPaybackLabel.style.marginBottom = 4;
+        _buildingInfoPanel.Add(_panelPaybackLabel);
+
+        _panelMonthlyProfitLabel = new Label("Monthly Profit: N/A");
+        _panelMonthlyProfitLabel.style.color = new Color(0.4f, 0.95f, 0.5f);
+        _panelMonthlyProfitLabel.style.fontSize = 12;
+        _panelMonthlyProfitLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        _panelMonthlyProfitLabel.style.marginBottom = 4;
+        _buildingInfoPanel.Add(_panelMonthlyProfitLabel);
+
+        _panelAvgThroughputLabel = new Label("Avg Output: N/A items/tick");
+        _panelAvgThroughputLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _panelAvgThroughputLabel.style.fontSize = 12;
+        _panelAvgThroughputLabel.style.marginBottom = 8;
+        _buildingInfoPanel.Add(_panelAvgThroughputLabel);
+
+        // Price Slider
+        AddSeparator();
+        var priceSliderLabel = new Label("Cena sprzedaży (slider)");
+        priceSliderLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
+        priceSliderLabel.style.fontSize = 11;
+        priceSliderLabel.style.marginBottom = 4;
+        _buildingInfoPanel.Add(priceSliderLabel);
+
+        _panelPriceSlider = new Slider(0f, 500f, SliderDirection.Horizontal);
+        _panelPriceSlider.style.marginBottom = 4;
+        _buildingInfoPanel.Add(_panelPriceSlider);
+
+        _panelPriceValueLabel = new Label("$0.00");
+        _panelPriceValueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+        _panelPriceValueLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _panelPriceValueLabel.style.fontSize = 12;
+        _panelPriceValueLabel.style.marginBottom = 8;
+        _buildingInfoPanel.Add(_panelPriceValueLabel);
+
+         _panelPriceSlider.RegisterValueChangedCallback(evt =>
+        {
+            if (_currentSelectedBuilding is ProductionBuilding prodBuilding)
+            {
+                prodBuilding.SetSellingPrice(evt.newValue);
+                _panelPriceValueLabel.text = $"${evt.newValue:F2}";
+            }
+        });
+
+
         // Przycisk zamknięcia
         var closeBtn = new Button(() => {
             _buildingInfoPanel.style.display = DisplayStyle.None;
@@ -495,13 +558,80 @@ public class UIManager : MonoBehaviour
 
     private void RefreshBuildingInfoPanel(Building building)
     {
-        if (building == null) return;
+        if (building == null)
+        {
+            _buildingInfoPanel.style.display = DisplayStyle.None;
+            return;
+        }
+
+        _buildingInfoPanel.style.display = DisplayStyle.Flex;
+
         var pb = building as ProductionBuilding;
-        if (pb != null || pb.Recipe == null)
+
+        // Podstawowe info
+        if (pb != null && pb.Recipe != null)
+        {
             _panelStorageLabel.text = 
-                $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j";
-        if (_panelConnectionsLabel != null)
-            _panelConnectionsLabel.text = pb.ConnectedBuildings.Count.ToString();                      
+                $"Magazyn: {pb.GetStorageAmount(pb.Recipe.outputProductId):F1} / {pb.StorageCapacity:F1}";
+            _panelConnectionsLabel.text = $"Połączenia: {pb.ConnectedBuildings.Count}";
+        }
+
+        // Ekonomia
+        float monthlyCost = building.GetMonthlyCost();
+        _panelProductLabel.text = $"Koszt mies: ${monthlyCost:F2}";
+
+        if (pb != null && pb.Recipe != null)
+        {
+            // Avg Throughput
+            float avgThroughput = pb.GetAverageThroughput(12);
+            _panelAvgThroughputLabel.text = $"Avg Output: {avgThroughput:F2} items/tick";
+
+            // Cost per unit
+            float inputCostSum = 0f;
+            var productDb = ProductDatabase.Instance;
+            if (productDb != null && pb.Recipe.inputs.Count > 0)
+            {
+                foreach (var input in pb.Recipe.inputs)
+                {
+                    var productData = productDb.GetById(input.productId);
+                    if (productData != null)
+                        inputCostSum += productData.basePrice * input.amount;
+                }
+            }
+            float maintenancePerUnit = monthlyCost / (30f * 24f); // godzinnie
+            float costPerUnit = (inputCostSum + maintenancePerUnit) / Mathf.Max(1f, pb.Recipe.outputAmount);
+
+            // Marża
+            float sellingPrice = pb.SellingPrice;
+            float marginPercent = sellingPrice > 0 ? ((sellingPrice - costPerUnit) / sellingPrice) * 100f : 0f;
+            marginPercent = Mathf.Max(marginPercent, -999f); // clip extreme values
+            _panelMarginLabel.text = $"Marża: {marginPercent:F1}%";
+
+            // Payback time (w dniach)
+            float dailyProfit = (avgThroughput * 24f * sellingPrice) - (monthlyCost / 30f);
+            float paybackDays = dailyProfit > 0.01f ? building.ConstructionCost / dailyProfit : float.MaxValue;
+            string paybackStr = paybackDays >= 999 ? "∞ dni" : $"{paybackDays:F1} dni";
+            _panelPaybackLabel.text = $"Payback: {paybackStr}";
+
+            // Monthly Profit
+            float monthlyProduction = avgThroughput * 24f * 30f;
+            float monthlyRevenue = monthlyProduction * sellingPrice;
+            float monthlyProfit = monthlyRevenue - monthlyCost;
+            Color profitColor = monthlyProfit >= 0 ? new Color(0.4f, 0.95f, 0.5f) : new Color(0.95f, 0.3f, 0.3f);
+            _panelMonthlyProfitLabel.style.color = profitColor;
+            _panelMonthlyProfitLabel.text = $"Monthly Profit: ${monthlyProfit:F0}";
+
+            // Price slider
+            _panelPriceSlider.SetValueWithoutNotify(sellingPrice);
+            _panelPriceValueLabel.text = $"${sellingPrice:F2}";
+        }
+        else
+        {
+            _panelMarginLabel.text = "Marża: N/A";
+            _panelPaybackLabel.text = "Payback: N/A";
+            _panelMonthlyProfitLabel.text = "Monthly Profit: N/A";
+            _panelAvgThroughputLabel.text = "Avg Output: N/A items/tick";
+        }
     }
 
     private string GetBuildingType(Building building)

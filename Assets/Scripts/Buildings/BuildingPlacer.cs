@@ -167,7 +167,8 @@ public class BuildingPlacer : MonoBehaviour
             gridPos.y,
             _selectedBuilding.constructionCost,
             _selectedBuilding.demolitionCost,
-            _selectedBuilding.monthlyMaintenance
+            _selectedBuilding.monthlyMaintenance,
+            _selectedBuilding.monthlyWages
         );
         if (_selectedBuilding.recipe != null)
             productionBuilding.InitializeProduction(_selectedBuilding.recipe, _productDatabase);
@@ -182,7 +183,8 @@ else
         gridPos.y,
         _selectedBuilding.constructionCost,
         _selectedBuilding.demolitionCost,
-        _selectedBuilding.monthlyMaintenance
+        _selectedBuilding.monthlyMaintenance,
+        _selectedBuilding.monthlyWages
     );
 }
 

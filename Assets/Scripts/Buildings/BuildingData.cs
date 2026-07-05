@@ -23,6 +23,7 @@ public class BuildingData : ScriptableObject
     public float constructionCost;
     public float demolitionCost;
     public float monthlyMaintenance;
+    public float monthlyWages = 100f; // jeśli budynek wymaga pracowników
 
     [Header("Produkcja (jeśli dotyczy)")]
     public RecipeData recipe;

@@ -20,6 +20,7 @@ public class Building : MonoBehaviour
     [SerializeField] protected float _constructionCost;
     [SerializeField] protected float _demolitionCost;
     [SerializeField] protected float _monthlyMaintenance;
+    [SerializeField] protected float _monthlyWages = 100f; // jeśli budynek wymaga pracowników
 
     [Header("Poziom")]
     [SerializeField] protected int _level = 1;
@@ -33,8 +34,9 @@ public class Building : MonoBehaviour
     public float ConstructionCost => _constructionCost;
     public float DemolitionCost => _demolitionCost;
     public float MonthlyMaintenance => _monthlyMaintenance;
+    public float MonthlyWages => _monthlyWages;
     public int Level => _level;
-    public float GetMonthlyCost() // maintance + wages (monthly)
+    public float GetMonthlyCost() => _monthlyMaintenance + _monthlyWages; // maintance + wages (monthly)
 
     /// <summary>
     /// Inicjalizacja budynku przy stawianiu. Wywoływane przez system budowania.
@@ -50,6 +52,7 @@ public class Building : MonoBehaviour
         _constructionCost = constructionCost;
         _demolitionCost = demolitionCost;
         _monthlyMaintenance = monthlyMaintenance;
+        _monthlyWages = monthlyWages; // domyślnie brak pracowników, można ustawić w klasach pochodnych
         _level = 1;
     }
 

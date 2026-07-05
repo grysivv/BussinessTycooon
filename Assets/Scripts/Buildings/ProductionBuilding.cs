@@ -41,8 +41,36 @@ public class ProductionBuilding : Building
     public RecipeData Recipe => _recipe;
     public float StorageCapacity => _storageCapacity;
     public IReadOnlyList<ProductionBuilding> ConnectedBuildings => _connectedBuildings;
-    public float GetAverageThroughput(int tikcCount) /// Average output items/tick z ostatnich N tikców
-    
+    private List<float> _outputHistory = new ();
+    private const int MAX_HISTORY = 12; //  ostatnie 12 tików 
+
+    /// <summary>
+    /// average output items/tick z ostatnich N tikców
+    /// </summary>
+  
+    public float GetAverageThroughput(int tikcCount)
+    {
+        if (_outputHistory.Count == 0) return 0f;
+        int count = Mathf.Min(tikcCount, _outputHistory.Count);
+        float sum  = 0f;
+        for (int i = _outputHistory.Count - count; i < _outputHistory.Count; i++)
+        {
+            sum += _outputHistory[i];
+        }
+        return sum / count;
+    }
+
+        ///<summary>
+        /// Zapisz output do historii
+        /// </summary>
+        private void RecordOutput(float amount)
+        {
+            _outputHistory.Add(amount);
+            if (_outputHistory.Count > MAX_HISTORY)
+                _outputHistory.RemoveAt(0);
+        }
+     /// Average output items/tick z ostatnich N tikców
+
 
     private void OnAnyProductionCompleted(ProductionCompletedEvent e)
 {
@@ -242,6 +270,7 @@ public class ProductionBuilding : Building
     private void CompleteProductionCycle()
     {
         float actualOutput = AddToStorage(_recipe.outputProductId, _recipe.outputAmount);
+        recordOutput(actualOutput);
 
         EventBus.Publish(new ProductionCompletedEvent
         {

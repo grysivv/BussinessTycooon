@@ -105,7 +105,7 @@ public class GameCalendar : MonoBehaviour
 
         foreach (var building in buildings)
         {
-            totalCost += building.MonthlyMaintenance;
+            totalCost += building.getMonthlyCost();
         }
 
         if (totalCost > 0f)
