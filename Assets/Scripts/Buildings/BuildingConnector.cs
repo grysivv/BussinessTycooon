@@ -137,7 +137,7 @@ public class BuildingConnector : MonoBehaviour
     public void DisconnectAll(ProductionBuilding building)
     {
         // Usuń jako źródło u wszystkich, którzy go mają na liście
-        var allBuildings = FindObjectsByType<ProductionBuilding>(FindObjectsSortMode.None);
+        var allBuildings = FindObjectsByType<ProductionBuilding>(FindObjectsInactive.Exclude);
 
         foreach (var other in allBuildings)
         {

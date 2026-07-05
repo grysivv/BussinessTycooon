@@ -588,7 +588,7 @@ public class UIManager : MonoBehaviour
 
             // Cost per unit
             float inputCostSum = 0f;
-            var productDb = ProductDatabase.Instance;
+            var productDb = EconomyManager.Instance?.ProductDatabase;
             if (productDb != null && pb.Recipe.inputs.Count > 0)
             {
                 foreach (var input in pb.Recipe.inputs)

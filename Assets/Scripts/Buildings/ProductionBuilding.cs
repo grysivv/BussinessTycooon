@@ -270,7 +270,7 @@ public class ProductionBuilding : Building
     private void CompleteProductionCycle()
     {
         float actualOutput = AddToStorage(_recipe.outputProductId, _recipe.outputAmount);
-        recordOutput(actualOutput);
+        RecordOutput(actualOutput);
 
         EventBus.Publish(new ProductionCompletedEvent
         {

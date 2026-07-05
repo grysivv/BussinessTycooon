@@ -100,12 +100,12 @@ public class GameCalendar : MonoBehaviour
 
     private void ProcessMonthlyMaintenance()
     {
-        var buildings = FindObjectsByType<Building>(FindObjectsSortMode.None);
+        var buildings = FindObjectsByType<Building>(FindObjectsInactive.Exclude);
         float totalCost = 0f;
 
         foreach (var building in buildings)
         {
-            totalCost += building.getMonthlyCost();
+            totalCost += building.GetMonthlyCost();
         }
 
         if (totalCost > 0f)

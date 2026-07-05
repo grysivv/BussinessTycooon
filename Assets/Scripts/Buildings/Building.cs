@@ -43,7 +43,7 @@ public class Building : MonoBehaviour
     /// </summary>
     public virtual void Initialize(string id, string displayName, int gridX, int gridY,
                                     float constructionCost, float demolitionCost,
-                                    float monthlyMaintenance)
+                                    float monthlyMaintenance, float monthlyWages)
     {
         _id = id;
         _displayName = displayName;
@@ -52,7 +52,7 @@ public class Building : MonoBehaviour
         _constructionCost = constructionCost;
         _demolitionCost = demolitionCost;
         _monthlyMaintenance = monthlyMaintenance;
-        _monthlyWages = monthlyWages; // domyślnie brak pracowników, można ustawić w klasach pochodnych
+        _monthlyWages = monthlyWages;
         _level = 1;
     }
 
