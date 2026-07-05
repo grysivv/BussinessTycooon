@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Centralny zarządca UI. Jedyny punkt otwierania i zamykania paneli.
@@ -29,6 +30,11 @@ public class UIManager : MonoBehaviour
 
     // Aktualnie wybrany budynek (do panelu info)
     private Building _currentSelectedBuilding;
+    private float _incomeThisTick = 0f;
+
+    private Label _panelStorageLabel;
+    private Label _panelConnectionsLabel;
+    private Label _panelProductLabel;
 
     void Awake()
     {
@@ -303,19 +309,19 @@ public class UIManager : MonoBehaviour
 
     private void OnTick(TickEvent e)
     {
-        // Aktualizacja przychodów
+        _incomeThisTick = 0f;
         if (_currentSelectedBuilding != null)
-            UpdateBuildingInfoPanel(_currentSelectedBuilding);
+            RefreshBuildingInfoPanel(_currentSelectedBuilding);
     }
 
     private void OnBuildingSelected(BuildingSelectedEvent e)
     {
         _currentSelectedBuilding = e.Building;
         _buildingInfoPanel.style.display = DisplayStyle.Flex;
-        UpdateBuildingInfoPanel(e.Building);
+        BuildBuildingInfoPanelContent(e.Building);
     }
-
-    private void UpdateBuildingInfoPanel(Building building)
+    
+    private void BuildBuildingInfoPanelContent(Building building)
     {
         _buildingInfoPanel.Clear();
 
@@ -352,7 +358,20 @@ public class UIManager : MonoBehaviour
             AddSectionLabel("PRODUKCJA");
             AddInfoRow("Produkt", pb.Recipe.outputProductId);
             AddInfoRow("Tempo", $"{pb.Recipe.outputAmount} j / {pb.Recipe.productionTimeTicks} tick");
-            AddInfoRow("Magazyn", $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j");
+            var storageRow = new VisualElement();
+            storageRow.style.flexDirection = FlexDirection.Row;
+            storageRow.style.justifyContent = Justify.SpaceBetween;
+            storageRow.style.marginBottom = 4;
+            var storageLbl = new Label("Magazyn");
+            storageLbl.style.color = new Color(0.55f, 0.65f, 0.75f);
+            storageLbl.style.fontSize = 12;
+            _panelStorageLabel = new Label($"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j");
+            _panelStorageLabel.style.color = new Color(0.9f, 0.95f, 1f);
+            _panelStorageLabel.style.fontSize = 12;
+            _panelStorageLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            storageRow.Add(storageLbl);
+            storageRow.Add(_panelStorageLabel);
+            _buildingInfoPanel.Add(storageRow);
 
             if (pb.Recipe.inputs.Count > 0)
             {
@@ -363,7 +382,20 @@ public class UIManager : MonoBehaviour
             }    
 
             AddSeparator();
-            AddInfoRow("Połączenia", $"{pb.ConnectedBuildings.Count}");
+            var connRow = new VisualElement();
+            connRow.style.flexDirection = FlexDirection.Row;
+            connRow.style.justifyContent = Justify.SpaceBetween;
+            connRow.style.marginBottom = 4;
+            var connLbl = new Label("Połączenia");
+            connLbl.style.color = new Color(0.55f, 0.65f, 0.75f);
+            connLbl.style.fontSize = 12;
+            _panelConnectionsLabel = new Label($"{pb.ConnectedBuildings.Count}");
+            _panelConnectionsLabel.style.color = new Color(0.9f, 0.95f, 1f);
+            _panelConnectionsLabel.style.fontSize = 12;
+            _panelConnectionsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            connRow.Add(connLbl);
+            connRow.Add(_panelConnectionsLabel);
+            _buildingInfoPanel.Add(connRow);
         }
 
         AddSeparator();
@@ -374,7 +406,78 @@ public class UIManager : MonoBehaviour
         AddInfoRow("Utrzymanie", $"${building.MonthlyMaintenance:F0}/mies.");
         AddInfoRow("Poziom", $"{building.Level}");
 
-    // Przycisk zamknięcia
+     // Tylko dla budynków produkcyjnych
+        if (pb != null)
+        {
+            AddSeparator();
+            AddSectionLabel("SPRZEDAŻ");
+
+            var priceRow = new VisualElement();
+            priceRow.style.flexDirection = FlexDirection.Row;
+            priceRow.style.justifyContent = Justify.SpaceBetween;
+            priceRow.style.alignItems = Align.Center;
+            priceRow.style.marginBottom = 2;
+
+            var priceLabel = new Label("Cena produktu");
+            priceLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
+            priceLabel.style.fontSize = 12;
+
+            var priceField = new UnityEngine.UIElements.TextField();
+            priceField.value = pb.SellingPrice.ToString("F0");
+            priceField.style.width = 80;
+            priceField.style.height = 30;
+            priceField.style.color = new Color(0.9f, 0.95f, 1f);
+            priceField.Q<UnityEngine.UIElements.TextElement>().style.color = new Color(0.22f, 0.24f, 0.26f);
+            priceField.style.fontSize = 10;
+            priceField.RegisterValueChangedCallback(evt =>
+            {
+                if (float.TryParse(evt.newValue, out float newPrice))
+                {
+                    pb.SetSellingPrice(Mathf.Max(0f, newPrice));
+                }
+            });
+
+            priceRow.Add(priceLabel);
+            priceRow.Add(priceField);
+            _buildingInfoPanel.Add(priceRow);
+
+            var autoSellRow = new VisualElement();
+            autoSellRow.style.flexDirection = FlexDirection.Row;
+            autoSellRow.style.alignItems = Align.Center;
+            autoSellRow.style.marginBottom = 8;
+
+            var autoSellToggle = new Toggle("Auto-sprzedaż");
+            autoSellToggle.value = pb.AutoSell;
+            autoSellToggle.style.color = new Color(0.9f, 0.95f, 1f);
+            autoSellToggle.RegisterValueChangedCallback(evt =>
+            {
+                pb.SetAutoSell(evt.newValue);
+            });
+
+            _buildingInfoPanel.Add(autoSellToggle);
+
+            // Przycisk sprzedaży
+            var sellBtn = new Button(() => 
+            {
+                float revenue = pb.SellAll();
+                if (revenue > 0f)
+                    Debug.Log($"[UI] Sprzedano za ${revenue:F2}");
+                BuildBuildingInfoPanelContent(building);
+            });
+
+            sellBtn.text = "Sprzedaj teraz";
+            sellBtn.style.backgroundColor = new Color(0.11f, 0.35f, 0.15f);
+            sellBtn.style.color = new Color(0.4f, 0.95f, 0.5f);
+            sellBtn.style.height = 28;
+            sellBtn.style.marginBottom = 4;
+            sellBtn.style.borderTopWidth = 0;
+            sellBtn.style.borderBottomWidth = 0;
+            sellBtn.style.borderLeftWidth = 0;
+            sellBtn.style.borderRightWidth = 0;
+            _buildingInfoPanel.Add(sellBtn);
+        }
+
+        // Przycisk zamknięcia
         var closeBtn = new Button(() => {
             _buildingInfoPanel.style.display = DisplayStyle.None;
         });
@@ -388,6 +491,17 @@ public class UIManager : MonoBehaviour
         closeBtn.style.borderRightWidth = 0;
         closeBtn.style.height = 28;
         _buildingInfoPanel.Add(closeBtn);
+    }
+
+    private void RefreshBuildingInfoPanel(Building building)
+    {
+        if (building == null) return;
+        var pb = building as ProductionBuilding;
+        if (pb != null || pb.Recipe == null)
+            _panelStorageLabel.text = 
+                $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j";
+        if (_panelConnectionsLabel != null)
+            _panelConnectionsLabel.text = pb.ConnectedBuildings.Count.ToString();                      
     }
 
     private string GetBuildingType(Building building)
@@ -460,7 +574,7 @@ public class UIManager : MonoBehaviour
     private void OnProductionCompleted(ProductionCompletedEvent e)
     {
         if (_currentSelectedBuilding == null) return;
-        UpdateBuildingInfoPanel(_currentSelectedBuilding);
+        RefreshBuildingInfoPanel(_currentSelectedBuilding);
     }
 
     // --- Publiczne metody ---
@@ -474,6 +588,27 @@ public class UIManager : MonoBehaviour
     public void HideBuildingInfo()
     {
         _buildingInfoPanel.style.display = DisplayStyle.None;
+    }
+
+    public bool IsPointerOverUI()
+    {
+        Vector2 mousePos = Mouse.current.position.ReadValue();
+        // Sprawdź, czy punkt znajduje się w obrębie któregokolwiek panelu UI
+        if (_buildingInfoPanel.style.display == DisplayStyle.Flex)
+        {
+            var panelRect = _buildingInfoPanel.worldBound;
+            if (panelRect.Contains(mousePos))
+                return true;
+        }
+        //Build Menu check
+        var buildMenuRect = _buildMenuPanel.worldBound;
+        if (buildMenuRect.Contains(mousePos))
+            return true;
+        // HUD check
+        var hudRect = _hudPanel.worldBound;
+        if (hudRect.Contains(mousePos))
+            return true;
+        return false;
     }
     
 }

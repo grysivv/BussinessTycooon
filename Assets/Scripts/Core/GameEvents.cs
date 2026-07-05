@@ -86,3 +86,10 @@ public struct MaintenancePaidEvent
     public int Year;
     public bool Success;
 }
+public struct SaleCompletedEvent
+{
+    public string ProductId;
+    public float Amount;
+    public float Revenue;
+    public float Price;
+}

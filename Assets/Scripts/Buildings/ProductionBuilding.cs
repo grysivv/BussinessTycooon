@@ -16,6 +16,12 @@ public class ProductionBuilding : Building
     [Header("Magazyn")]
     [SerializeField] private float _storageCapacity = 100f;
 
+    [Header("Sprzedaż")]
+    [SerializeField] private float _sellingPrice = 0f;
+     [SerializeField] private bool _autoSell = false;
+     public float SellingPrice => _sellingPrice;
+     public bool AutoSell => _autoSell;
+
     [Header("Połączenia (wypełniane przez BuildingConnector)")]
     [SerializeField] private List<ProductionBuilding> _connectedBuildings = new();
 
@@ -35,6 +41,8 @@ public class ProductionBuilding : Building
     public RecipeData Recipe => _recipe;
     public float StorageCapacity => _storageCapacity;
     public IReadOnlyList<ProductionBuilding> ConnectedBuildings => _connectedBuildings;
+    public float GetAverageThroughput(int tikcCount) /// Average output items/tick z ostatnich N tikców
+    
 
     private void OnAnyProductionCompleted(ProductionCompletedEvent e)
 {
@@ -67,6 +75,14 @@ public class ProductionBuilding : Building
         _statisticsManager = StatisticsManager.Instance;
         _storage = new Dictionary<string, float>();
         _isDirty = true;
+
+        if (_recipe != null && _productDatabase != null)
+        {
+            var productData = _productDatabase.GetById(_recipe.outputProductId);
+            if (productData != null)
+                _sellingPrice = productData.basePrice; // domyślna cena sprzedaży = cena bazowa produktu
+
+        }
     }
 
     // --- Magazyn — dostęp publiczny ---
@@ -233,7 +249,10 @@ public class ProductionBuilding : Building
             Amount = actualOutput
         });
 
-        _statisticsManager?.RecordSale(_recipe.outputProductId, 0f, 0f); 
+        _statisticsManager?.RecordSale(_recipe.outputProductId, 0f, 0f);
+        if(_autoSell)
+            SellAll();
+
         // RecordSale tu tylko jako placeholder do produkcji — 
         // faktyczna sprzedaż będzie osobnym wywołaniem z systemu rynku
     }
@@ -273,5 +292,62 @@ public class ProductionBuilding : Building
 
         foreach (var kvp in _storage)
             Debug.Log($"  Magazyn: {kvp.Key} = {kvp.Value:F1}");
+    }
+/// <summary>
+/// Ustaw cenę sprzedaży produktu.
+/// </summary>
+public void SetSellingPrice(float price)
+{
+    _sellingPrice = Mathf.Max(0f, price);
+}
+
+/// <summary>
+/// Włącz/wyłącz auto-sprzedaż.
+/// </summary>
+public void SetAutoSell(bool enabled)
+{
+    _autoSell = enabled;
+}
+
+/// <summary>
+/// Sprzedaj całą zawartość magazynu po aktualnej cenie.
+/// Zwraca przychód ze sprzedaży.
+/// </summary>
+public float SellAll()
+    {
+        Debug.Log($"[SellAll] {_displayName}: _sellingPrice={_sellingPrice}");
+        if (_recipe == null) return 0f;
+        if (_sellingPrice <= 0f)
+        {
+            Debug.LogWarning($"[ProductionBuilding] {_displayName}: cena sprzedaży = 0!");
+            return 0f;
+        }
+
+        string productId = _recipe.outputProductId;
+        float available = GetStorageAmount(productId);
+        if (available <= 0f) return 0f;
+
+        // Ogranicz sprzedaż do popytu
+        float demand = EconomyManager.Instance?.GetDemand(productId) ?? available;
+        float toSell = Mathf.Min(available, demand);
+
+        float sold = TakeFromStorage(productId, toSell);
+        float revenue = sold * _sellingPrice;
+
+        PlayerManager.Instance?.AddCapital(revenue);
+        StatisticsManager.Instance?.RecordSale(productId, sold, revenue);
+
+        EventBus.Publish(new SaleCompletedEvent
+        {
+            ProductId = productId,
+            Amount = sold,
+            Revenue = revenue,
+            Price = _sellingPrice
+        });
+
+        Debug.Log($"[ProductionBuilding] {_displayName}: sprzedano {sold:F1} x {productId} " +
+                $"@ ${_sellingPrice} = ${revenue:F2}");
+
+        return revenue;
     }
 }

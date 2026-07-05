@@ -40,9 +40,11 @@ public class BuildingSelector : MonoBehaviour
 
     void Update()
     {
-        if (_mainCamera == null) return;  // ← DODAJ TĘ LINIĘ
+        if (_mainCamera == null) return;
         // Ignoruj kliknięcia gdy jesteśmy w trybie stawiania
         if (BuildingPlacer.Instance != null && BuildingPlacer.Instance.IsPlacing)
+            return;
+        if (UIManager.Instance != null && UIManager.Instance.IsPointerOverUI())
             return;
 
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;

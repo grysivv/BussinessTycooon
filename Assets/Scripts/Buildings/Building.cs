@@ -34,6 +34,7 @@ public class Building : MonoBehaviour
     public float DemolitionCost => _demolitionCost;
     public float MonthlyMaintenance => _monthlyMaintenance;
     public int Level => _level;
+    public float GetMonthlyCost() // maintance + wages (monthly)
 
     /// <summary>
     /// Inicjalizacja budynku przy stawianiu. Wywoływane przez system budowania.
