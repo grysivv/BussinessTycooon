@@ -288,6 +288,10 @@ public class ProductionBuilding : Building
 
     // --- Dirty Flag ---
 
+    /// <summary>
+    /// Oznacza budynek jako wymagający aktualizacji w kolejnym ticku.
+    /// Używane do optymalizacji: jeśli budynek nie ma surowców, zasypia dopóki nie zostanie oznaczony.
+    /// </summary>
     public void MarkDirty()
     {
         _isDirty = true;
@@ -295,6 +299,10 @@ public class ProductionBuilding : Building
 
     // --- Połączenia (wypełniane przez BuildingConnector) ---
 
+    /// <summary>
+    /// Ustawia listę budynków połączonych jako dostawcy surowców.
+    /// Powinno być wywoływane wyłącznie przez system łączący (BuildingConnector).
+    /// </summary>
     public void SetConnectedBuildings(List<ProductionBuilding> connections)
     {
         _connectedBuildings = connections;
