@@ -103,15 +103,27 @@ public class StatisticsManager : MonoBehaviour
 
     // --- Publiczne metody odczytu ---
 
+    /// <summary>
+    /// Zwraca łączną historyczną ilość wyprodukowanego produktu danego typu.
+    /// </summary>
     public float GetTotalProduced(string productId)
         => GetCounter(_totalProduced, productId);
 
+    /// <summary>
+    /// Zwraca łączną historyczną ilość zużytego produktu danego typu (jako surowiec).
+    /// </summary>
     public float GetTotalConsumed(string productId)
         => GetCounter(_totalConsumed, productId);
 
+    /// <summary>
+    /// Zwraca łączną historyczną ilość sprzedanego produktu danego typu.
+    /// </summary>
     public float GetTotalSold(string productId)
         => GetCounter(_totalSold, productId);
 
+    /// <summary>
+    /// Zwraca łączny historyczny przychód ze sprzedaży produktu danego typu.
+    /// </summary>
     public float GetTotalRevenue(string productId)
         => GetCounter(_totalRevenue, productId);
 

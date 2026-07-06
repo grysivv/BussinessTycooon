@@ -1,6 +1,10 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+/// <summary>
+/// Baza danych przechowująca definicje wszystkich budynków w grze.
+/// Tworzy indeks do szybkiego wyszukiwania po ID budynku.
+/// </summary>
 [CreateAssetMenu(fileName = "BuildingDatabase", menuName = "Tycoon/Building Database")]
 public class BuildingDatabase : ScriptableObject
 {
@@ -8,6 +12,10 @@ public class BuildingDatabase : ScriptableObject
 
     private Dictionary<string, BuildingData> _index;
 
+    /// <summary>
+    /// Znajduje i zwraca definicję budynku na podstawie jego identyfikatora.
+    /// Zwraca null, jeśli budynek o podanym ID nie istnieje.
+    /// </summary>
     public BuildingData GetById(string id)
     {
         BuildIndexIfNeeded();
@@ -19,6 +27,9 @@ public class BuildingDatabase : ScriptableObject
         return null;
     }
 
+    /// <summary>
+    /// Zwraca listę wszystkich budynków należących do określonej kategorii.
+    /// </summary>
     public List<BuildingData> GetByCategory(BuildingCategory category)
     {
         var result = new List<BuildingData>();
@@ -28,6 +39,9 @@ public class BuildingDatabase : ScriptableObject
         return result;
     }
 
+    /// <summary>
+    /// Lista wszystkich budynków zapisanych w bazie danych (tylko do odczytu).
+    /// </summary>
     public IReadOnlyList<BuildingData> AllBuildings => _buildings;
 
     private void BuildIndexIfNeeded()
