@@ -142,6 +142,9 @@ public class MapCameraController : MonoBehaviour
 
     private void HandleZoom()
     {
+        if (UIManager.Instance != null && UIManager.Instance.IsPointerOverUI())
+            return;
+            
         float scroll = Mouse.current.scroll.ReadValue().y;
         if (scroll == 0f) return;
 

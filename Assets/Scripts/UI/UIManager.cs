@@ -21,8 +21,7 @@ public class UIManager : MonoBehaviour
     // Panele
     private VisualElement _hudPanel;
     private VisualElement _buildMenuPanel;
-    private VisualElement _buildingInfoPanel;
-    // Przewijalny kontener na treść panelu info — zapobiega ściskaniu i nachodzeniu elementów
+    private VisualElement _buildingInfoWindow;
     private ScrollView _infoBody;
 
     // Elementy HUD
@@ -70,7 +69,7 @@ public class UIManager : MonoBehaviour
         BuildStyles();
         BuildHUD();
         BuildBuildMenu();
-        BuildBuildingInfoPanel();
+        BuildBuildingInfoWindow();
 
         Debug.Log("[UIManager] UI zbudowane.");
     }
@@ -282,23 +281,37 @@ public class UIManager : MonoBehaviour
         return container;
     }
 
-    // --- Building Info Panel (prawy panel) ---
+    // --- Building Info Window (popup, nie panel) ---
 
-    private void BuildBuildingInfoPanel()
+    private void BuildBuildingInfoWindow()
     {
-        _buildingInfoPanel = new VisualElement();
-        _buildingInfoPanel.style.position = Position.Absolute;
-        _buildingInfoPanel.style.right = 0;
-        _buildingInfoPanel.style.top = 48;
-        _buildingInfoPanel.style.bottom = 90;
-        _buildingInfoPanel.style.width = 220;
-        _buildingInfoPanel.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.92f);
-        _buildingInfoPanel.style.paddingLeft = 14;
-        _buildingInfoPanel.style.paddingRight = 14;
-        _buildingInfoPanel.style.paddingTop = 14;
-        _buildingInfoPanel.style.display = DisplayStyle.None;
+        _buildingInfoWindow = new VisualElement();
+        _buildingInfoWindow.style.position = Position.Absolute;
+        _buildingInfoWindow.style.left = new Length(50, LengthUnit.Percent);
+        _buildingInfoWindow.style.top = new Length(50, LengthUnit.Percent);
+        _buildingInfoWindow.style.translate = new Translate(new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
+        _buildingInfoWindow.style.width = 500;
+        _buildingInfoWindow.style.height = 650;
+        _buildingInfoWindow.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.95f);
+        _buildingInfoWindow.style.borderTopWidth = 2;
+        _buildingInfoWindow.style.borderBottomWidth = 2;
+        _buildingInfoWindow.style.borderLeftWidth = 2;
+        _buildingInfoWindow.style.borderRightWidth = 2;
+        _buildingInfoWindow.style.borderTopColor = new Color(0.3f, 0.45f, 0.65f);
+        _buildingInfoWindow.style.borderBottomColor = new Color(0.3f, 0.45f, 0.65f);
+        _buildingInfoWindow.style.borderLeftColor = new Color(0.3f, 0.45f, 0.65f);
+        _buildingInfoWindow.style.borderRightColor = new Color(0.3f, 0.45f, 0.65f);
+        _buildingInfoWindow.style.borderTopLeftRadius = 8;
+        _buildingInfoWindow.style.borderTopRightRadius = 8;
+        _buildingInfoWindow.style.borderBottomLeftRadius = 8;
+        _buildingInfoWindow.style.borderBottomRightRadius = 8;
+        _buildingInfoWindow.style.paddingLeft = 14;
+        _buildingInfoWindow.style.paddingRight = 14;
+        _buildingInfoWindow.style.paddingTop = 14;
+        _buildingInfoWindow.style.paddingBottom = 14;
+        _buildingInfoWindow.style.display = DisplayStyle.None;
 
-        _root.Add(_buildingInfoPanel);
+        _root.Add(_buildingInfoWindow);
     }
 
     // --- Aktualizacja paneli ---
@@ -324,25 +337,31 @@ public class UIManager : MonoBehaviour
     private void OnBuildingSelected(BuildingSelectedEvent e)
     {
         _currentSelectedBuilding = e.Building;
-        _buildingInfoPanel.style.display = DisplayStyle.Flex;
-        BuildBuildingInfoPanelContent(e.Building);
+        _buildingInfoWindow.style.display = DisplayStyle.Flex;
+        BuildBuildingInfoWindowContent(e.Building);
     }
     
-    private void BuildBuildingInfoPanelContent(Building building)
+    private void BuildBuildingInfoWindowContent(Building building)
     {
-        _buildingInfoPanel.Clear();
+        _buildingInfoWindow.Clear();
 
         if (building == null) return;
 
-        // Cała treść trafia do ScrollView, żeby przy nadmiarze elementów
-        // panel się przewijał zamiast ściskać i nakładać etykiety na siebie.
+        // Cała treść trafia do ScrollView
         _infoBody = new ScrollView(ScrollViewMode.Vertical);
         _infoBody.style.flexGrow = 1;
-        _buildingInfoPanel.Add(_infoBody);
+        _buildingInfoWindow.Add(_infoBody);
 
-        // Nagłówek
+        var scrollbar = _infoBody.Q<ScrollView>()?.verticalScroller;
+        if (scrollbar != null)
+        {
+            scrollbar.style.width = 8;
+            scrollbar.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
+        }
+        
+        // === NAGŁÓWEK ===
         var header = new VisualElement();
-        header.style.marginBottom = 10;
+        header.style.marginBottom = 12;
 
         var typeLabel = new Label(GetBuildingType(building));
         typeLabel.style.color = new Color(0.5f, 0.65f, 0.8f);
@@ -364,13 +383,14 @@ public class UIManager : MonoBehaviour
 
         AddSeparator();
 
-    // Dane produkcji
+        // === PRODUKCJA ===
         var pb = building as ProductionBuilding;
         if (pb != null && pb.Recipe != null)
         {
             AddSectionLabel("PRODUKCJA");
             AddInfoRow("Produkt", pb.Recipe.outputProductId);
             AddInfoRow("Tempo", $"{pb.Recipe.outputAmount} j / {pb.Recipe.productionTimeTicks} tick");
+            
             var storageRow = new VisualElement();
             storageRow.style.flexDirection = FlexDirection.Row;
             storageRow.style.justifyContent = Justify.SpaceBetween;
@@ -378,7 +398,7 @@ public class UIManager : MonoBehaviour
             var storageLbl = new Label("Magazyn");
             storageLbl.style.color = new Color(0.55f, 0.65f, 0.75f);
             storageLbl.style.fontSize = 12;
-            _panelStorageLabel = new Label($"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j");
+            _panelStorageLabel = new Label($"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0}");
             _panelStorageLabel.style.color = new Color(0.9f, 0.95f, 1f);
             _panelStorageLabel.style.fontSize = 12;
             _panelStorageLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -413,13 +433,14 @@ public class UIManager : MonoBehaviour
 
         AddSeparator();
 
-    // Ekonomia
+        // === EKONOMIA ===
         AddSectionLabel("EKONOMIA");
         AddInfoRow("Koszt budowy", $"${building.ConstructionCost:F0}");
         AddInfoRow("Utrzymanie", $"${building.MonthlyMaintenance:F0}/mies.");
+        AddInfoRow("Pensje", $"${building.MonthlyWages:F0}/mies.");
         AddInfoRow("Poziom", $"{building.Level}");
 
-     // Tylko dla budynków produkcyjnych
+        // === SPRZEDAŻ (tylko production buildings) ===
         if (pb != null)
         {
             AddSeparator();
@@ -429,7 +450,7 @@ public class UIManager : MonoBehaviour
             priceRow.style.flexDirection = FlexDirection.Row;
             priceRow.style.justifyContent = Justify.SpaceBetween;
             priceRow.style.alignItems = Align.Center;
-            priceRow.style.marginBottom = 2;
+            priceRow.style.marginBottom = 8;
 
             var priceLabel = new Label("Cena produktu");
             priceLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
@@ -454,35 +475,28 @@ public class UIManager : MonoBehaviour
             priceRow.Add(priceField);
             _infoBody.Add(priceRow);
 
-            var autoSellRow = new VisualElement();
-            autoSellRow.style.flexDirection = FlexDirection.Row;
-            autoSellRow.style.alignItems = Align.Center;
-            autoSellRow.style.marginBottom = 8;
-
             var autoSellToggle = new Toggle("Auto-sprzedaż");
             autoSellToggle.value = pb.AutoSell;
             autoSellToggle.style.color = new Color(0.9f, 0.95f, 1f);
+            autoSellToggle.style.marginBottom = 8;
             autoSellToggle.RegisterValueChangedCallback(evt =>
             {
                 pb.SetAutoSell(evt.newValue);
             });
-
             _infoBody.Add(autoSellToggle);
 
-            // Przycisk sprzedaży
             var sellBtn = new Button(() => 
             {
                 float revenue = pb.SellAll();
                 if (revenue > 0f)
                     Debug.Log($"[UI] Sprzedano za ${revenue:F2}");
-                BuildBuildingInfoPanelContent(building);
+                BuildBuildingInfoWindowContent(building);
             });
-
             sellBtn.text = "Sprzedaj teraz";
             sellBtn.style.backgroundColor = new Color(0.11f, 0.35f, 0.15f);
             sellBtn.style.color = new Color(0.4f, 0.95f, 0.5f);
             sellBtn.style.height = 28;
-            sellBtn.style.marginBottom = 4;
+            sellBtn.style.marginBottom = 8;
             sellBtn.style.borderTopWidth = 0;
             sellBtn.style.borderBottomWidth = 0;
             sellBtn.style.borderLeftWidth = 0;
@@ -490,6 +504,7 @@ public class UIManager : MonoBehaviour
             _infoBody.Add(sellBtn);
         }
 
+        // === ANALYTICS ===
         AddSeparator();
         AddSectionLabel("ANALYTICS");
 
@@ -515,11 +530,10 @@ public class UIManager : MonoBehaviour
         _panelAvgThroughputLabel = new Label("Avg Output: N/A items/tick");
         _panelAvgThroughputLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelAvgThroughputLabel.style.fontSize = 12;
-        _panelAvgThroughputLabel.style.marginBottom = 8;
+        _panelAvgThroughputLabel.style.marginBottom = 12;
         _infoBody.Add(_panelAvgThroughputLabel);
 
-        // Price Slider
-        AddSeparator();
+        // === PRICE SLIDER ===
         var priceSliderLabel = new Label("Cena sprzedaży (slider)");
         priceSliderLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
         priceSliderLabel.style.fontSize = 11;
@@ -534,10 +548,10 @@ public class UIManager : MonoBehaviour
         _panelPriceValueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
         _panelPriceValueLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelPriceValueLabel.style.fontSize = 12;
-        _panelPriceValueLabel.style.marginBottom = 8;
+        _panelPriceValueLabel.style.marginBottom = 12;
         _infoBody.Add(_panelPriceValueLabel);
 
-         _panelPriceSlider.RegisterValueChangedCallback(evt =>
+        _panelPriceSlider.RegisterValueChangedCallback(evt =>
         {
             if (_currentSelectedBuilding is ProductionBuilding prodBuilding)
             {
@@ -546,13 +560,11 @@ public class UIManager : MonoBehaviour
             }
         });
 
-
-        // Przycisk zamknięcia
+        // === CLOSE BUTTON ===
         var closeBtn = new Button(() => {
-            _buildingInfoPanel.style.display = DisplayStyle.None;
+            _buildingInfoWindow.style.display = DisplayStyle.None;
         });
         closeBtn.text = "✕ Zamknij";
-        closeBtn.style.marginTop = 12;
         closeBtn.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
         closeBtn.style.color = new Color(0.7f, 0.75f, 0.85f);
         closeBtn.style.borderTopWidth = 0;
@@ -567,19 +579,19 @@ public class UIManager : MonoBehaviour
     {
         if (building == null)
         {
-            _buildingInfoPanel.style.display = DisplayStyle.None;
+            _buildingInfoWindow.style.display = DisplayStyle.None;
             return;
         }
 
-        _buildingInfoPanel.style.display = DisplayStyle.Flex;
+        _buildingInfoWindow.style.display = DisplayStyle.Flex;
 
         var pb = building as ProductionBuilding;
 
-        // Podstawowe info — tylko wartość (etykieta "Magazyn"/"Połączenia" jest osobno w wierszu)
+        // Podstawowe info
         if (pb != null && pb.Recipe != null && _panelStorageLabel != null)
         {
             _panelStorageLabel.text =
-                $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0} j";
+                $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0}";
             _panelConnectionsLabel.text = $"{pb.ConnectedBuildings.Count}";
         }
 
@@ -604,13 +616,13 @@ public class UIManager : MonoBehaviour
                         inputCostSum += productData.basePrice * input.amount;
                 }
             }
-            float maintenancePerUnit = monthlyCost / (30f * 24f); // godzinnie
+            float maintenancePerUnit = monthlyCost / (30f * 24f);
             float costPerUnit = (inputCostSum + maintenancePerUnit) / Mathf.Max(1f, pb.Recipe.outputAmount);
 
             // Marża
             float sellingPrice = pb.SellingPrice;
             float marginPercent = sellingPrice > 0 ? ((sellingPrice - costPerUnit) / sellingPrice) * 100f : 0f;
-            marginPercent = Mathf.Max(marginPercent, -999f); // clip extreme values
+            marginPercent = Mathf.Max(marginPercent, -999f);
             _panelMarginLabel.text = $"Marża: {marginPercent:F1}%";
 
             // Payback time (w dniach)
@@ -643,10 +655,7 @@ public class UIManager : MonoBehaviour
     private string GetBuildingType(Building building)
     {
         if (building is ProductionBuilding pb && pb.Recipe != null)
-        {
-            var category = pb.Recipe.outputProductId;
             return "Budynek produkcyjny";
-        }
         return "Budynek";
     }
 
@@ -665,7 +674,8 @@ public class UIManager : MonoBehaviour
         var label = new Label(text);
         label.style.color = new Color(0.45f, 0.58f, 0.75f);
         label.style.fontSize = 10;
-        label.style.marginBottom = 5;
+        label.style.marginBottom = 6;
+        label.style.unityFontStyleAndWeight = FontStyle.Bold;
         _infoBody.Add(label);
     }
 
@@ -688,7 +698,6 @@ public class UIManager : MonoBehaviour
         row.Add(lbl);
         row.Add(val);
         _infoBody.Add(row);
-
     }
 
     private void OnTimeUpdated(TimeUpdatedEvent e)
@@ -700,51 +709,45 @@ public class UIManager : MonoBehaviour
     private void OnBuildingDeselected(BuildingDeselectedEvent e)
     {
         _currentSelectedBuilding = null;
-        _buildingInfoPanel.style.display = DisplayStyle.None;
+        _buildingInfoWindow.style.display = DisplayStyle.None;
     }
 
     private void OnSpeedButtonClicked(float speed)
     {
         GameManager.Instance?.SetGameSpeed(speed);
     }
+
     private void OnProductionCompleted(ProductionCompletedEvent e)
     {
         if (_currentSelectedBuilding == null) return;
         RefreshBuildingInfoPanel(_currentSelectedBuilding);
     }
 
-    // --- Publiczne metody ---
-
     public void ShowBuildingInfo(Building building)
     {
-        // Wypełnimy szczegółami w kolejnym kroku
-        _buildingInfoPanel.style.display = DisplayStyle.Flex;
+        _buildingInfoWindow.style.display = DisplayStyle.Flex;
     }
 
     public void HideBuildingInfo()
     {
-        _buildingInfoPanel.style.display = DisplayStyle.None;
+        _buildingInfoWindow.style.display = DisplayStyle.None;
     }
 
     public bool IsPointerOverUI()
     {
         Vector2 mousePos = Mouse.current.position.ReadValue();
-        // Sprawdź, czy punkt znajduje się w obrębie któregokolwiek panelu UI
-        if (_buildingInfoPanel.style.display == DisplayStyle.Flex)
+        if (_buildingInfoWindow.style.display == DisplayStyle.Flex)
         {
-            var panelRect = _buildingInfoPanel.worldBound;
+            var panelRect = _buildingInfoWindow.worldBound;
             if (panelRect.Contains(mousePos))
                 return true;
         }
-        //Build Menu check
         var buildMenuRect = _buildMenuPanel.worldBound;
         if (buildMenuRect.Contains(mousePos))
             return true;
-        // HUD check
         var hudRect = _hudPanel.worldBound;
         if (hudRect.Contains(mousePos))
             return true;
         return false;
     }
-    
 }
