@@ -23,6 +23,7 @@ public class UIManager : MonoBehaviour
     private VisualElement _buildMenuPanel;
     private VisualElement _buildingInfoWindow;
     private ScrollView _infoBody;
+    private VisualElement _activeColumn;
 
     // Elementy HUD
     private Label _moneyLabel;
@@ -290,8 +291,8 @@ public class UIManager : MonoBehaviour
         _buildingInfoWindow.style.left = new Length(50, LengthUnit.Percent);
         _buildingInfoWindow.style.top = new Length(50, LengthUnit.Percent);
         _buildingInfoWindow.style.translate = new Translate(new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
-        _buildingInfoWindow.style.width = 500;
-        _buildingInfoWindow.style.height = 650;
+        _buildingInfoWindow.style.width = 760;
+        _buildingInfoWindow.style.height = 560;
         _buildingInfoWindow.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.95f);
         _buildingInfoWindow.style.borderTopWidth = 2;
         _buildingInfoWindow.style.borderBottomWidth = 2;
@@ -358,7 +359,29 @@ public class UIManager : MonoBehaviour
             scrollbar.style.width = 8;
             scrollbar.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
         }
-        
+
+        // === UKŁAD DWUKOLUMNOWY ===
+        var columns = new VisualElement();
+        columns.style.flexDirection = FlexDirection.Row;
+        columns.style.flexGrow = 1;
+        _infoBody.Add(columns);
+
+        var leftColumn = new VisualElement();
+        leftColumn.style.flexGrow = 1;
+        leftColumn.style.flexBasis = 0;
+        leftColumn.style.marginRight = 8;
+
+        var rightColumn = new VisualElement();
+        rightColumn.style.flexGrow = 1;
+        rightColumn.style.flexBasis = 0;
+        rightColumn.style.marginLeft = 8;
+
+        columns.Add(leftColumn);
+        columns.Add(rightColumn);
+
+        // Domyślnie budujemy w lewej kolumnie
+        _activeColumn = leftColumn;
+
         // === NAGŁÓWEK ===
         var header = new VisualElement();
         header.style.marginBottom = 12;
@@ -379,7 +402,7 @@ public class UIManager : MonoBehaviour
         header.Add(typeLabel);
         header.Add(nameLabel);
         header.Add(posLabel);
-        _infoBody.Add(header);
+        _activeColumn.Add(header);
 
         AddSeparator();
 
@@ -404,7 +427,7 @@ public class UIManager : MonoBehaviour
             _panelStorageLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             storageRow.Add(storageLbl);
             storageRow.Add(_panelStorageLabel);
-            _infoBody.Add(storageRow);
+            _activeColumn.Add(storageRow);
 
             if (pb.Recipe.inputs.Count > 0)
             {
@@ -428,7 +451,7 @@ public class UIManager : MonoBehaviour
             _panelConnectionsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             connRow.Add(connLbl);
             connRow.Add(_panelConnectionsLabel);
-            _infoBody.Add(connRow);
+            _activeColumn.Add(connRow);
         }
 
         AddSeparator();
@@ -440,10 +463,12 @@ public class UIManager : MonoBehaviour
         AddInfoRow("Pensje", $"${building.MonthlyWages:F0}/mies.");
         AddInfoRow("Poziom", $"{building.Level}");
 
+        // === PRAWA KOLUMNA ===
+        _activeColumn = rightColumn;
+
         // === SPRZEDAŻ (tylko production buildings) ===
         if (pb != null)
         {
-            AddSeparator();
             AddSectionLabel("SPRZEDAŻ");
 
             var priceRow = new VisualElement();
@@ -473,7 +498,7 @@ public class UIManager : MonoBehaviour
 
             priceRow.Add(priceLabel);
             priceRow.Add(priceField);
-            _infoBody.Add(priceRow);
+            _activeColumn.Add(priceRow);
 
             var autoSellToggle = new Toggle("Auto-sprzedaż");
             autoSellToggle.value = pb.AutoSell;
@@ -483,7 +508,7 @@ public class UIManager : MonoBehaviour
             {
                 pb.SetAutoSell(evt.newValue);
             });
-            _infoBody.Add(autoSellToggle);
+            _activeColumn.Add(autoSellToggle);
 
             var sellBtn = new Button(() => 
             {
@@ -501,7 +526,7 @@ public class UIManager : MonoBehaviour
             sellBtn.style.borderBottomWidth = 0;
             sellBtn.style.borderLeftWidth = 0;
             sellBtn.style.borderRightWidth = 0;
-            _infoBody.Add(sellBtn);
+            _activeColumn.Add(sellBtn);
         }
 
         // === ANALYTICS ===
@@ -512,44 +537,44 @@ public class UIManager : MonoBehaviour
         _panelMarginLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelMarginLabel.style.fontSize = 12;
         _panelMarginLabel.style.marginBottom = 4;
-        _infoBody.Add(_panelMarginLabel);
+        _activeColumn.Add(_panelMarginLabel);
 
         _panelPaybackLabel = new Label("Payback: N/A");
         _panelPaybackLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelPaybackLabel.style.fontSize = 12;
         _panelPaybackLabel.style.marginBottom = 4;
-        _infoBody.Add(_panelPaybackLabel);
+        _activeColumn.Add(_panelPaybackLabel);
 
         _panelMonthlyProfitLabel = new Label("Monthly Profit: N/A");
         _panelMonthlyProfitLabel.style.color = new Color(0.4f, 0.95f, 0.5f);
         _panelMonthlyProfitLabel.style.fontSize = 12;
         _panelMonthlyProfitLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         _panelMonthlyProfitLabel.style.marginBottom = 4;
-        _infoBody.Add(_panelMonthlyProfitLabel);
+        _activeColumn.Add(_panelMonthlyProfitLabel);
 
         _panelAvgThroughputLabel = new Label("Avg Output: N/A items/tick");
         _panelAvgThroughputLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelAvgThroughputLabel.style.fontSize = 12;
         _panelAvgThroughputLabel.style.marginBottom = 12;
-        _infoBody.Add(_panelAvgThroughputLabel);
+        _activeColumn.Add(_panelAvgThroughputLabel);
 
         // === PRICE SLIDER ===
         var priceSliderLabel = new Label("Cena sprzedaży (slider)");
         priceSliderLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
         priceSliderLabel.style.fontSize = 11;
         priceSliderLabel.style.marginBottom = 4;
-        _infoBody.Add(priceSliderLabel);
+        _activeColumn.Add(priceSliderLabel);
 
         _panelPriceSlider = new Slider(0f, 500f, SliderDirection.Horizontal);
         _panelPriceSlider.style.marginBottom = 4;
-        _infoBody.Add(_panelPriceSlider);
+        _activeColumn.Add(_panelPriceSlider);
 
         _panelPriceValueLabel = new Label("$0.00");
         _panelPriceValueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
         _panelPriceValueLabel.style.color = new Color(0.9f, 0.95f, 1f);
         _panelPriceValueLabel.style.fontSize = 12;
         _panelPriceValueLabel.style.marginBottom = 12;
-        _infoBody.Add(_panelPriceValueLabel);
+        _activeColumn.Add(_panelPriceValueLabel);
 
         _panelPriceSlider.RegisterValueChangedCallback(evt =>
         {
@@ -572,6 +597,7 @@ public class UIManager : MonoBehaviour
         closeBtn.style.borderLeftWidth = 0;
         closeBtn.style.borderRightWidth = 0;
         closeBtn.style.height = 28;
+        closeBtn.style.marginTop = 8;
         _infoBody.Add(closeBtn);
     }
 
@@ -666,7 +692,7 @@ public class UIManager : MonoBehaviour
         sep.style.backgroundColor = new Color(0.2f, 0.27f, 0.4f);
         sep.style.marginTop = 8;
         sep.style.marginBottom = 8;
-        _infoBody.Add(sep);
+        _activeColumn.Add(sep);
     }
 
     private void AddSectionLabel(string text)
@@ -676,7 +702,7 @@ public class UIManager : MonoBehaviour
         label.style.fontSize = 10;
         label.style.marginBottom = 6;
         label.style.unityFontStyleAndWeight = FontStyle.Bold;
-        _infoBody.Add(label);
+        _activeColumn.Add(label);
     }
 
     private void AddInfoRow(string labelText, string valueText)
@@ -697,7 +723,7 @@ public class UIManager : MonoBehaviour
 
         row.Add(lbl);
         row.Add(val);
-        _infoBody.Add(row);
+        _activeColumn.Add(row);
     }
 
     private void OnTimeUpdated(TimeUpdatedEvent e)
