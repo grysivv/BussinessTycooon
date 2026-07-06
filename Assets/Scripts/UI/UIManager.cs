@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 /// <summary>
 /// Centralny zarządca UI. Jedyny punkt otwierania i zamykania paneli.
@@ -24,6 +25,9 @@ public class UIManager : MonoBehaviour
     private VisualElement _buildingInfoWindow;
     private ScrollView _infoBody;
     private VisualElement _activeColumn;
+    private VisualElement _dashboardView;
+    private bool _isDashboardOpen = false;
+    private Dictionary<string, LineChart> _dashboardCharts = new();
 
     // Elementy HUD
     private Label _moneyLabel;
@@ -35,13 +39,12 @@ public class UIManager : MonoBehaviour
     private float _incomeThisTick = 0f;
 
     private Label _panelStorageLabel;
-    private Label _panelConnectionsLabel;
     private Label _panelMarginLabel;
     private Label _panelPaybackLabel;
     private Label _panelMonthlyProfitLabel;
     private Label _panelAvgThroughputLabel;
     private Slider _panelPriceSlider;
-    private Label _panelPriceValueLabel;
+    private UnityEngine.UIElements.TextField _panelPriceValueLabel;
 
     void Awake()
     {
@@ -71,6 +74,7 @@ public class UIManager : MonoBehaviour
         BuildHUD();
         BuildBuildMenu();
         BuildBuildingInfoWindow();
+        BuildDashboard();
 
         Debug.Log("[UIManager] UI zbudowane.");
     }
@@ -83,6 +87,7 @@ public class UIManager : MonoBehaviour
         EventBus.Subscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
         EventBus.Subscribe<ProductionCompletedEvent>(OnProductionCompleted);
         EventBus.Subscribe<TimeUpdatedEvent>(OnTimeUpdated);
+        EventBus.Subscribe<TickEvent>(OnDashboardTick);
     }
 
     void OnDisable()
@@ -93,6 +98,7 @@ public class UIManager : MonoBehaviour
         EventBus.Unsubscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
         EventBus.Unsubscribe<ProductionCompletedEvent>(OnProductionCompleted);
         EventBus.Unsubscribe<TimeUpdatedEvent>(OnTimeUpdated);
+        EventBus.Unsubscribe<TickEvent>(OnDashboardTick);
     }
 
     // --- Budowanie stylów globalnych ---
@@ -149,7 +155,7 @@ public class UIManager : MonoBehaviour
         _tickLabel.style.fontSize = 13;
         _tickLabel.style.marginRight = 16;
 
-        // Przyciski prędkości
+        // Przyciski prędkości i dashboard
         var speedGroup = new VisualElement();
         speedGroup.style.flexDirection = FlexDirection.Row;
 
@@ -159,6 +165,28 @@ public class UIManager : MonoBehaviour
             var btn = CreateSpeedButton(label, speed);
             speedGroup.Add(btn);
         }
+
+        var economyBtn = new Button(() => ToggleDashboard());
+        economyBtn.text = "[Economy]";
+        economyBtn.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
+        economyBtn.style.color = new Color(0.8f, 0.85f, 0.9f);
+        economyBtn.style.borderTopWidth = 1;
+        economyBtn.style.borderBottomWidth = 1;
+        economyBtn.style.borderLeftWidth = 1;
+        economyBtn.style.borderRightWidth = 1;
+        economyBtn.style.borderTopColor = new Color(0.25f, 0.32f, 0.48f);
+        economyBtn.style.borderBottomColor = new Color(0.25f, 0.32f, 0.48f);
+        economyBtn.style.borderLeftColor = new Color(0.25f, 0.32f, 0.48f);
+        economyBtn.style.borderRightColor = new Color(0.25f, 0.32f, 0.48f);
+        economyBtn.style.marginLeft = 8;
+        economyBtn.style.paddingLeft = 10;
+        economyBtn.style.paddingRight = 10;
+        economyBtn.style.height = 28;
+        economyBtn.style.borderTopLeftRadius = 4;
+        economyBtn.style.borderTopRightRadius = 4;
+        economyBtn.style.borderBottomLeftRadius = 4;
+        economyBtn.style.borderBottomRightRadius = 4;
+        speedGroup.Add(economyBtn);
 
         rightGroup.Add(_tickLabel);
         rightGroup.Add(speedGroup);
@@ -191,6 +219,220 @@ public class UIManager : MonoBehaviour
         btn.style.borderBottomLeftRadius = 4;
         btn.style.borderBottomRightRadius = 4;
         return btn;
+    }
+
+    // --- Dashboard ---
+
+    private void ToggleDashboard()
+    {
+        _isDashboardOpen = !_isDashboardOpen;
+        Debug.Log($"[Dashboard] Toggle: {_isDashboardOpen}");
+
+        if (_isDashboardOpen)
+        {
+            _hudPanel.style.display = DisplayStyle.None;
+            _buildMenuPanel.style.display = DisplayStyle.None;
+            _buildingInfoWindow.style.display = DisplayStyle.None;
+            _dashboardView.style.display = DisplayStyle.Flex;
+        }
+        else
+        {
+            _dashboardView.style.display = DisplayStyle.None;
+            _hudPanel.style.display = DisplayStyle.Flex;
+            _buildMenuPanel.style.display = DisplayStyle.Flex;
+        }
+    }
+
+    private void BuildDashboard()
+    {
+        _dashboardView = new VisualElement();
+        _dashboardView.style.position = Position.Absolute;
+        _dashboardView.style.left = 0;
+        _dashboardView.style.top = 0;
+        _dashboardView.style.width = Length.Percent(100);
+        _dashboardView.style.height = Length.Percent(100);
+        _dashboardView.style.display = DisplayStyle.None;
+        _dashboardView.style.flexDirection = FlexDirection.Column;
+        _dashboardView.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.98f);
+
+        // Top bar: Close button
+        var topBar = new VisualElement();
+        topBar.style.height = 48;
+        topBar.style.backgroundColor = new Color(0.1f, 0.12f, 0.18f, 0.95f);
+        topBar.style.flexDirection = FlexDirection.Row;
+        topBar.style.alignItems = Align.Center;
+        topBar.style.paddingLeft = 16;
+        topBar.style.paddingRight = 16;
+
+        var titleLabel = new Label("ECONOMY DASHBOARD");
+        titleLabel.style.fontSize = 18;
+        titleLabel.style.color = new Color(0.45f, 0.58f, 0.75f);
+        titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        titleLabel.style.flexGrow = 1;
+        topBar.Add(titleLabel);
+
+        var closeBtn = new Button(() => ToggleDashboard());
+        closeBtn.text = "✕";
+        closeBtn.style.width = 40;
+        closeBtn.style.height = 28;
+        closeBtn.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
+        closeBtn.style.color = new Color(0.7f, 0.75f, 0.85f);
+        topBar.Add(closeBtn);
+
+        _dashboardView.Add(topBar);
+
+        // Content area with two columns
+        var content = new VisualElement();
+        content.style.flexGrow = 1;
+        content.style.flexDirection = FlexDirection.Row;
+        content.style.paddingLeft = 16;
+        content.style.paddingRight = 16;
+        content.style.paddingTop = 16;
+        content.style.paddingBottom = 16;
+
+        // Left column: Product selector
+        var leftCol = new VisualElement();
+        leftCol.style.flexBasis = 0;
+        leftCol.style.flexGrow = 1;
+        leftCol.style.marginRight = 16;
+        leftCol.style.maxWidth = new Length(300, LengthUnit.Pixel);
+        leftCol.style.backgroundColor = new Color(0.10f, 0.13f, 0.2f, 0.9f);
+        leftCol.style.borderTopWidth = 1;
+        leftCol.style.borderBottomWidth = 1;
+        leftCol.style.borderLeftWidth = 1;
+        leftCol.style.borderRightWidth = 1;
+        leftCol.style.borderTopColor = new Color(0.2f, 0.27f, 0.4f);
+        leftCol.style.borderBottomColor = new Color(0.2f, 0.27f, 0.4f);
+        leftCol.style.borderLeftColor = new Color(0.2f, 0.27f, 0.4f);
+        leftCol.style.borderRightColor = new Color(0.2f, 0.27f, 0.4f);
+        leftCol.style.borderTopLeftRadius = 4;
+        leftCol.style.borderTopRightRadius = 4;
+        leftCol.style.borderBottomLeftRadius = 4;
+        leftCol.style.borderBottomRightRadius = 4;
+        leftCol.style.paddingLeft = 12;
+        leftCol.style.paddingRight = 12;
+        leftCol.style.paddingTop = 12;
+        leftCol.style.paddingBottom = 12;
+
+        var label = new Label("PRODUKTY");
+        label.style.fontSize = 12;
+        label.style.color = new Color(0.45f, 0.58f, 0.75f);
+        label.style.unityFontStyleAndWeight = FontStyle.Bold;
+        label.style.marginBottom = 8;
+        leftCol.Add(label);
+
+        var productDb2 = EconomyManager.Instance?.ProductDatabase;
+        if (productDb2 != null)
+        {
+            foreach (var product in productDb2.AllProducts)
+            {
+                var toggle = new Toggle(product.name);
+                toggle.value = true;
+                toggle.style.marginBottom = 4;
+                toggle.style.color = new Color(0.9f, 0.95f, 1f);
+                leftCol.Add(toggle);
+            }
+        }
+
+        // Right column: Charts and stats
+        var rightCol = new VisualElement();
+        rightCol.style.flexBasis = 0;
+        rightCol.style.flexGrow = 2;
+        rightCol.style.flexDirection = FlexDirection.Column;
+
+        var statsLabel = new Label("STATYSTYKI PRODUKTÓW");
+        statsLabel.style.fontSize = 12;
+        statsLabel.style.color = new Color(0.45f, 0.58f, 0.75f);
+        statsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        statsLabel.style.marginBottom = 12;
+        rightCol.Add(statsLabel);
+
+        // Simple table/list of product stats
+        var statsScroll = new ScrollView(ScrollViewMode.Vertical);
+        statsScroll.style.flexGrow = 1;
+        statsScroll.style.backgroundColor = new Color(0.10f, 0.13f, 0.2f, 0.9f);
+        statsScroll.style.borderTopWidth = 1;
+        statsScroll.style.borderBottomWidth = 1;
+        statsScroll.style.borderLeftWidth = 1;
+        statsScroll.style.borderRightWidth = 1;
+        statsScroll.style.borderTopColor = new Color(0.2f, 0.27f, 0.4f);
+        statsScroll.style.borderBottomColor = new Color(0.2f, 0.27f, 0.4f);
+        statsScroll.style.borderLeftColor = new Color(0.2f, 0.27f, 0.4f);
+        statsScroll.style.borderRightColor = new Color(0.2f, 0.27f, 0.4f);
+        statsScroll.style.borderTopLeftRadius = 4;
+        statsScroll.style.borderTopRightRadius = 4;
+        statsScroll.style.borderBottomLeftRadius = 4;
+        statsScroll.style.borderBottomRightRadius = 4;
+        statsScroll.style.paddingLeft = 12;
+        statsScroll.style.paddingRight = 12;
+        statsScroll.style.paddingTop = 12;
+        statsScroll.style.paddingBottom = 12;
+
+        var productDb = EconomyManager.Instance?.ProductDatabase;
+        if (productDb != null)
+        {
+            Debug.Log($"[Dashboard] Creating charts for {productDb.AllProducts.Count} products");
+            foreach (var product in productDb.AllProducts)
+            {
+                var container = new VisualElement();
+                container.style.flexDirection = FlexDirection.Column;
+                container.style.marginBottom = 16;
+                container.style.paddingBottom = 8;
+                container.style.borderBottomWidth = 1;
+                container.style.borderBottomColor = new Color(0.2f, 0.27f, 0.4f);
+
+                var nameLabel = new Label(product.name);
+                nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
+                nameLabel.style.fontSize = 11;
+                nameLabel.style.marginBottom = 6;
+
+                var chart = new LineChart();
+                chart.style.width = Length.Percent(100);
+                chart.style.height = 100;
+                _dashboardCharts[product.id] = chart;
+                Debug.Log($"[Dashboard] Created chart for {product.name}");
+
+                container.Add(nameLabel);
+                container.Add(chart);
+                statsScroll.Add(container);
+            }
+        }
+
+        rightCol.Add(statsScroll);
+
+        content.Add(leftCol);
+        content.Add(rightCol);
+        _dashboardView.Add(content);
+
+        _root.Add(_dashboardView);
+    }
+
+    private void OnDashboardTick(TickEvent e)
+    {
+        Debug.Log($"[Dashboard] OnDashboardTick called: open={_isDashboardOpen}, display={_dashboardView.style.display}");
+
+        if (!(_isDashboardOpen && _dashboardView.style.display == DisplayStyle.Flex))
+            return;
+
+        var stats = StatisticsManager.Instance;
+        if (stats == null) { Debug.LogWarning("[Dashboard] Brak StatisticsManager w scenie!"); return; }
+
+        var productDb = EconomyManager.Instance?.ProductDatabase;
+        if (productDb == null) { Debug.LogWarning("[Dashboard] Brak ProductDatabase!"); return; }
+
+        foreach (var product in productDb.AllProducts)
+        {
+            if (_dashboardCharts.TryGetValue(product.id, out var chart))
+            {
+                var history = stats.GetHourlyPriceHistory(product.id);
+                Debug.Log($"[Dashboard] {product.name}: {history.Count} price points");
+                chart.SetData(history);
+            }
+            else
+            {
+                Debug.LogWarning($"[Dashboard] Brak wykresu dla id='{product.id}'");
+            }
+        }
     }
 
     // --- Build Menu (dolny pasek) ---
@@ -435,23 +677,7 @@ public class UIManager : MonoBehaviour
                 AddSectionLabel("SUROWCE");
                 foreach (var input in pb.Recipe.inputs)
                     AddInfoRow(input.productId, $"{pb.GetAvailableFromPool(input.productId):F0} dostępne");
-            }    
-
-            AddSeparator();
-            var connRow = new VisualElement();
-            connRow.style.flexDirection = FlexDirection.Row;
-            connRow.style.justifyContent = Justify.SpaceBetween;
-            connRow.style.marginBottom = 4;
-            var connLbl = new Label("Połączenia");
-            connLbl.style.color = new Color(0.55f, 0.65f, 0.75f);
-            connLbl.style.fontSize = 12;
-            _panelConnectionsLabel = new Label($"{pb.ConnectedBuildings.Count}");
-            _panelConnectionsLabel.style.color = new Color(0.9f, 0.95f, 1f);
-            _panelConnectionsLabel.style.fontSize = 12;
-            _panelConnectionsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            connRow.Add(connLbl);
-            connRow.Add(_panelConnectionsLabel);
-            _activeColumn.Add(connRow);
+            }
         }
 
         AddSeparator();
@@ -466,71 +692,7 @@ public class UIManager : MonoBehaviour
         // === PRAWA KOLUMNA ===
         _activeColumn = rightColumn;
 
-        // === SPRZEDAŻ (tylko production buildings) ===
-        if (pb != null)
-        {
-            AddSectionLabel("SPRZEDAŻ");
-
-            var priceRow = new VisualElement();
-            priceRow.style.flexDirection = FlexDirection.Row;
-            priceRow.style.justifyContent = Justify.SpaceBetween;
-            priceRow.style.alignItems = Align.Center;
-            priceRow.style.marginBottom = 8;
-
-            var priceLabel = new Label("Cena produktu");
-            priceLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
-            priceLabel.style.fontSize = 12;
-
-            var priceField = new UnityEngine.UIElements.TextField();
-            priceField.value = pb.SellingPrice.ToString("F0");
-            priceField.style.width = 80;
-            priceField.style.height = 30;
-            priceField.style.color = new Color(0.9f, 0.95f, 1f);
-            priceField.Q<UnityEngine.UIElements.TextElement>().style.color = new Color(0.22f, 0.24f, 0.26f);
-            priceField.style.fontSize = 10;
-            priceField.RegisterValueChangedCallback(evt =>
-            {
-                if (float.TryParse(evt.newValue, out float newPrice))
-                {
-                    pb.SetSellingPrice(Mathf.Max(0f, newPrice));
-                }
-            });
-
-            priceRow.Add(priceLabel);
-            priceRow.Add(priceField);
-            _activeColumn.Add(priceRow);
-
-            var autoSellToggle = new Toggle("Auto-sprzedaż");
-            autoSellToggle.value = pb.AutoSell;
-            autoSellToggle.style.color = new Color(0.9f, 0.95f, 1f);
-            autoSellToggle.style.marginBottom = 8;
-            autoSellToggle.RegisterValueChangedCallback(evt =>
-            {
-                pb.SetAutoSell(evt.newValue);
-            });
-            _activeColumn.Add(autoSellToggle);
-
-            var sellBtn = new Button(() => 
-            {
-                float revenue = pb.SellAll();
-                if (revenue > 0f)
-                    Debug.Log($"[UI] Sprzedano za ${revenue:F2}");
-                BuildBuildingInfoWindowContent(building);
-            });
-            sellBtn.text = "Sprzedaj teraz";
-            sellBtn.style.backgroundColor = new Color(0.11f, 0.35f, 0.15f);
-            sellBtn.style.color = new Color(0.4f, 0.95f, 0.5f);
-            sellBtn.style.height = 28;
-            sellBtn.style.marginBottom = 8;
-            sellBtn.style.borderTopWidth = 0;
-            sellBtn.style.borderBottomWidth = 0;
-            sellBtn.style.borderLeftWidth = 0;
-            sellBtn.style.borderRightWidth = 0;
-            _activeColumn.Add(sellBtn);
-        }
-
         // === ANALYTICS ===
-        AddSeparator();
         AddSectionLabel("ANALYTICS");
 
         _panelMarginLabel = new Label("Marża: N/A");
@@ -565,28 +727,86 @@ public class UIManager : MonoBehaviour
         priceSliderLabel.style.marginBottom = 4;
         _activeColumn.Add(priceSliderLabel);
 
-        _panelPriceSlider = new Slider(0f, 500f, SliderDirection.Horizontal);
-        _panelPriceSlider.style.marginBottom = 4;
+        _panelPriceSlider = new Slider(25f, 125f, SliderDirection.Horizontal);
+        _panelPriceSlider.style.marginBottom = 8;
         _activeColumn.Add(_panelPriceSlider);
 
-        _panelPriceValueLabel = new Label("$0.00");
-        _panelPriceValueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
-        _panelPriceValueLabel.style.color = new Color(0.9f, 0.95f, 1f);
-        _panelPriceValueLabel.style.fontSize = 12;
+        _panelPriceValueLabel = new UnityEngine.UIElements.TextField();
+        _panelPriceValueLabel.value = "$0.00";
+        _panelPriceValueLabel.style.height = 30;
         _panelPriceValueLabel.style.marginBottom = 12;
+        _panelPriceValueLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _panelPriceValueLabel.Q<UnityEngine.UIElements.TextElement>().style.color = new Color(0.22f, 0.24f, 0.26f);
+        _panelPriceValueLabel.style.fontSize = 10;
         _activeColumn.Add(_panelPriceValueLabel);
 
         _panelPriceSlider.RegisterValueChangedCallback(evt =>
         {
-            if (_currentSelectedBuilding is ProductionBuilding prodBuilding)
+            if (_currentSelectedBuilding is ProductionBuilding prodBuilding && prodBuilding.Recipe != null)
             {
-                prodBuilding.SetSellingPrice(evt.newValue);
-                _panelPriceValueLabel.text = $"${evt.newValue:F2}";
+                var productDb = EconomyManager.Instance?.ProductDatabase;
+                var productData = productDb?.GetById(prodBuilding.Recipe.outputProductId);
+                float basePrice = productData?.basePrice ?? 1f;
+                float actualPrice = (evt.newValue / 100f) * basePrice;
+                prodBuilding.SetSellingPrice(actualPrice);
+                _panelPriceValueLabel.SetValueWithoutNotify($"${actualPrice:F2}");
             }
         });
 
+        _panelPriceValueLabel.RegisterValueChangedCallback(evt =>
+        {
+            if (_currentSelectedBuilding is ProductionBuilding prodBuilding && prodBuilding.Recipe != null)
+            {
+                if (float.TryParse(evt.newValue.Replace("$", ""), out float newPrice))
+                {
+                    prodBuilding.SetSellingPrice(Mathf.Max(0f, newPrice));
+                    var productDb = EconomyManager.Instance?.ProductDatabase;
+                    var productData = productDb?.GetById(prodBuilding.Recipe.outputProductId);
+                    float basePrice = productData?.basePrice ?? 1f;
+                    float pricePercent = basePrice > 0 ? (newPrice / basePrice) * 100f : 100f;
+                    pricePercent = Mathf.Clamp(pricePercent, 25f, 125f);
+                    _panelPriceSlider.SetValueWithoutNotify(pricePercent);
+                }
+            }
+        });
+
+        // === SPRZEDAŻ (tylko production buildings) ===
+        if (pb != null)
+        {
+            AddSeparator();
+            AddSectionLabel("SPRZEDAŻ");
+
+            var autoSellToggle = new Toggle("Auto-sprzedaż");
+            autoSellToggle.value = pb.AutoSell;
+            autoSellToggle.style.color = new Color(0.9f, 0.95f, 1f);
+            autoSellToggle.style.marginBottom = 8;
+            autoSellToggle.RegisterValueChangedCallback(evt =>
+            {
+                pb.SetAutoSell(evt.newValue);
+            });
+            _activeColumn.Add(autoSellToggle);
+
+            var sellBtn = new Button(() =>
+            {
+                float revenue = pb.SellAll();
+                if (revenue > 0f)
+                    Debug.Log($"[UI] Sprzedano za ${revenue:F2}");
+                BuildBuildingInfoWindowContent(building);
+            });
+            sellBtn.text = "Sprzedaj teraz";
+            sellBtn.style.backgroundColor = new Color(0.11f, 0.35f, 0.15f);
+            sellBtn.style.color = new Color(0.4f, 0.95f, 0.5f);
+            sellBtn.style.height = 28;
+            sellBtn.style.borderTopWidth = 0;
+            sellBtn.style.borderBottomWidth = 0;
+            sellBtn.style.borderLeftWidth = 0;
+            sellBtn.style.borderRightWidth = 0;
+            _activeColumn.Add(sellBtn);
+        }
+
         // === CLOSE BUTTON ===
         var closeBtn = new Button(() => {
+            _currentSelectedBuilding = null;
             _buildingInfoWindow.style.display = DisplayStyle.None;
         });
         closeBtn.text = "✕ Zamknij";
@@ -618,7 +838,6 @@ public class UIManager : MonoBehaviour
         {
             _panelStorageLabel.text =
                 $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0}";
-            _panelConnectionsLabel.text = $"{pb.ConnectedBuildings.Count}";
         }
 
         // Ekonomia
@@ -665,9 +884,13 @@ public class UIManager : MonoBehaviour
             _panelMonthlyProfitLabel.style.color = profitColor;
             _panelMonthlyProfitLabel.text = $"Monthly Profit: ${monthlyProfit:F0}";
 
-            // Price slider
-            _panelPriceSlider.SetValueWithoutNotify(sellingPrice);
-            _panelPriceValueLabel.text = $"${sellingPrice:F2}";
+            // Price slider (25-125% of base price)
+            var outputProductData = productDb?.GetById(pb.Recipe.outputProductId);
+            float basePrice = outputProductData?.basePrice ?? 1f;
+            float pricePercent = basePrice > 0 ? (sellingPrice / basePrice) * 100f : 100f;
+            pricePercent = Mathf.Clamp(pricePercent, 25f, 125f);
+            _panelPriceSlider.SetValueWithoutNotify(pricePercent);
+            _panelPriceValueLabel.SetValueWithoutNotify($"${sellingPrice:F2}");
         }
         else
         {

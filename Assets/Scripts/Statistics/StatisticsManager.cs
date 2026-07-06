@@ -17,6 +17,13 @@ public class StatisticsManager : MonoBehaviour
     private Dictionary<string, float> _totalSold      = new();
     private Dictionary<string, float> _totalRevenue   = new();
 
+    // Hourly price history (per product, max 30 days = 720 ticki)
+    private Dictionary<string, List<float>> _hourlyPriceHistory = new();
+    private Dictionary<string, float> _hourlyRevenue = new();
+    private Dictionary<string, float> _hourlyAmount = new();
+    private const int TICKS_PER_HOUR = 24;
+    private const int MAX_HISTORY_POINTS = 30; // days
+
     // Liczniki globalne
     private int   _totalTicks          = 0;
     private float _totalMoneyEarned    = 0f;
@@ -57,6 +64,12 @@ public class StatisticsManager : MonoBehaviour
     private void OnTick(TickEvent e)
     {
         _totalTicks++;
+
+        // Co 24 ticki (1h ingame) — aggregate hourly prices
+        if (_totalTicks % TICKS_PER_HOUR == 0)
+        {
+            AggregateHourlyPrices();
+        }
     }
 
     private void OnProductionCompleted(ProductionCompletedEvent e)
@@ -91,6 +104,10 @@ public class StatisticsManager : MonoBehaviour
     {
         AddToCounter(_totalSold, productId, amount);
         AddToCounter(_totalRevenue, productId, revenue);
+
+        // Akumuluj do hourly aggregate
+        AddToCounter(_hourlyRevenue, productId, revenue);
+        AddToCounter(_hourlyAmount, productId, amount);
     }
 
     /// <summary>
@@ -127,6 +144,30 @@ public class StatisticsManager : MonoBehaviour
     public float GetTotalRevenue(string productId)
         => GetCounter(_totalRevenue, productId);
 
+    /// <summary>
+    /// Zwraca historię cen godzinowych produktu (ostatnie 30 dni, max 30 punktów).
+    /// </summary>
+    public List<float> GetHourlyPriceHistory(string productId)
+    {
+        if (_hourlyPriceHistory.TryGetValue(productId, out var history))
+            return new List<float>(history);
+        return new List<float>();
+    }
+
+    /// <summary>
+    /// Zwraca statystyki produkcji dla produktu (wyprodukowana, zużyta, średnia cena).
+    /// </summary>
+    public (float produced, float consumed, float avgPrice) GetProductionStats(string productId)
+    {
+        float produced = GetTotalProduced(productId);
+        float consumed = GetTotalConsumed(productId);
+        float totalRevenue = GetTotalRevenue(productId);
+        float totalSold = GetTotalSold(productId);
+        float avgPrice = totalSold > 0 ? totalRevenue / totalSold : 0f;
+
+        return (produced, consumed, avgPrice);
+    }
+
     public int TotalTicks             => _totalTicks;
     public float TotalMoneyEarned     => _totalMoneyEarned;
     public float TotalMoneySpent      => _totalMoneySpent;
@@ -146,6 +187,35 @@ public class StatisticsManager : MonoBehaviour
     private float GetCounter(Dictionary<string, float> dict, string key)
     {
         return dict.TryGetValue(key, out float val) ? val : 0f;
+    }
+
+    // --- Agregacja danych ---
+
+    private void AggregateHourlyPrices()
+    {
+        foreach (var productId in _hourlyRevenue.Keys)
+        {
+            if (_hourlyAmount.TryGetValue(productId, out float amount) && amount > 0)
+            {
+                float revenue = _hourlyRevenue[productId];
+                float hourlyPrice = revenue / amount;
+
+                // Inicjalizuj listę jeśli nie istnieje
+                if (!_hourlyPriceHistory.ContainsKey(productId))
+                    _hourlyPriceHistory[productId] = new List<float>();
+
+                // Dodaj nową cenę godzinową
+                _hourlyPriceHistory[productId].Add(hourlyPrice);
+
+                // Przechowaj tylko ostatnie 30 dni (720 ticki / 24 = 30 punktów)
+                if (_hourlyPriceHistory[productId].Count > MAX_HISTORY_POINTS)
+                    _hourlyPriceHistory[productId].RemoveAt(0);
+            }
+        }
+
+        // Wyzeruj akumulatory na następną godzinę
+        _hourlyRevenue.Clear();
+        _hourlyAmount.Clear();
     }
 
     // --- Diagnostyka ---
