@@ -36,6 +36,10 @@ public class Building : MonoBehaviour
     public float MonthlyMaintenance => _monthlyMaintenance;
     public float MonthlyWages => _monthlyWages;
     public int Level => _level;
+
+    /// <summary>
+    /// Zwraca całkowity miesięczny koszt utrzymania budynku (stałe utrzymanie + pensje pracowników).
+    /// </summary>
     public float GetMonthlyCost() => _monthlyMaintenance + _monthlyWages; // maintance + wages (monthly)
 
     /// <summary>

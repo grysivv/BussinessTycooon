@@ -161,6 +161,9 @@ public class MapCameraController : MonoBehaviour
             new Vector3(mouseScreenPos.x, mouseScreenPos.y, -_camera.transform.position.z));
     }
 
+    /// <summary>
+    /// Odświeża granice mapy na podstawie rozmiarów tilemapy terenu (przydatne przy generowaniu/zmianie mapy).
+    /// </summary>
     public void RefreshBounds()
     {
         CalculateMapBounds();

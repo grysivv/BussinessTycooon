@@ -67,7 +67,8 @@ public class GridManager : MonoBehaviour
     // --- Walidacja pozycji ---
 
     /// <summary>
-    /// Czy pozycja jest w granicach siatki?
+    /// Zwraca granice (Bounds) lokalnego układu współrzędnych tilemapy terenu.
+    /// Przydatne m.in. dla kamery, by nie wyjeżdżała poza planszę.
     /// </summary>
     public Bounds GetTerrainBounds()
     {
@@ -77,7 +78,9 @@ public class GridManager : MonoBehaviour
         return _terrainTilemap.localBounds;
     } 
      
-    
+    /// <summary>
+    /// Sprawdza, czy podane współrzędne (x, y) mieszczą się w granicach siatki.
+    /// </summary>
     public bool IsInBounds(int x, int y)
     {
         return x >= _gridOffsetX && x < _gridOffsetX + _gridWidth &&

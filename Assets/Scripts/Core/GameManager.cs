@@ -56,6 +56,9 @@ public class GameManager : MonoBehaviour
 
     // --- Kontrola stanu gry ---
 
+    /// <summary>
+    /// Zatrzymuje czas w grze (pauzuje).
+    /// </summary>
     public void PauseGame()
     {
         if (_currentState == GameState.Running)
@@ -66,6 +69,9 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Wznawia czas w grze.
+    /// </summary>
     public void ResumeGame()
     {
         if (_currentState == GameState.Paused)
@@ -76,6 +82,9 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Zmienia mnożnik prędkości upływu czasu (ticków).
+    /// </summary>
     public void SetGameSpeed(float speed)
     {
         _tickManager?.SetSpeed(speed);

@@ -154,6 +154,9 @@ public class EconomyManager : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Dodaje wskazaną kwotę do całkowitego bilansu gracza w EconomyManager.
+    /// </summary>
     public void AddMoney(float amount)
     {
         if (amount <= 0f) return;

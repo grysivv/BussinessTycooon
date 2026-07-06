@@ -723,16 +723,29 @@ public class UIManager : MonoBehaviour
         RefreshBuildingInfoPanel(_currentSelectedBuilding);
     }
 
+    // --- Publiczne metody ---
+
+    /// <summary>
+    /// Wyświetla panel informacyjny dla przekazanego budynku.
+    /// </summary>
+
     public void ShowBuildingInfo(Building building)
     {
         _buildingInfoWindow.style.display = DisplayStyle.Flex;
     }
 
+    /// <summary>
+    /// Ukrywa panel informacyjny budynku.
+    /// </summary>
     public void HideBuildingInfo()
     {
         _buildingInfoWindow.style.display = DisplayStyle.None;
     }
 
+    /// <summary>
+    /// Sprawdza, czy wskaźnik myszy znajduje się nad jakimkolwiek istotnym elementem UI.
+    /// Przydatne by np. blokować kliknięcia w obiekty w świecie gry pod interfejsem.
+    /// </summary>
     public bool IsPointerOverUI()
     {
         Vector2 mousePos = Mouse.current.position.ReadValue();
