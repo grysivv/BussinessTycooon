@@ -562,22 +562,26 @@ public class UIManager : MonoBehaviour
         _buildingInfoWindow.style.SetRadius(8);
         _buildingInfoWindow.style.display = DisplayStyle.None;
 
-        // Nagłówek okna: typ + nazwa po lewej, ✕ po prawej
+        // Nagłówek okna: typ + nazwa po lewej, ✕ po prawej (wyrównany na środku)
         var headerBar = new VisualElement();
         headerBar.style.flexDirection = FlexDirection.Row;
         headerBar.style.alignItems = Align.Center;
+        headerBar.style.justifyContent = Justify.SpaceBetween;
         headerBar.style.SetPadding(14, 10);
         headerBar.style.borderBottomWidth = 1;
         headerBar.style.borderBottomColor = UITheme.Border;
+        headerBar.style.height = 50;
 
         var headerText = new VisualElement();
         headerText.style.flexGrow = 1;
+        headerText.style.flexDirection = FlexDirection.Column;
         headerText.style.justifyContent = Justify.Center;
 
         _windowSubtitleLabel = new Label("");
         _windowSubtitleLabel.style.color = UITheme.TextHeader;
         _windowSubtitleLabel.style.fontSize = 10;
         _windowSubtitleLabel.style.letterSpacing = 1.5f;
+        _windowSubtitleLabel.style.marginBottom = 2;
 
         _windowTitleLabel = new Label("");
         _windowTitleLabel.style.color = UITheme.TextPrimary;
@@ -587,13 +591,17 @@ public class UIManager : MonoBehaviour
         headerText.Add(_windowSubtitleLabel);
         headerText.Add(_windowTitleLabel);
 
-        var spacer = new VisualElement();
-        spacer.style.width = 34;
-
-        var closeBtn = CreateToolbarButton("✕", CloseBuildingInfoWindow);
-        closeBtn.style.width = 34;
-        closeBtn.style.height = 30;
-        closeBtn.style.marginRight = -10;
+        var closeBtn = new Button(CloseBuildingInfoWindow) { text = "✕" };
+        closeBtn.style.width = 28;
+        closeBtn.style.height = 28;
+        closeBtn.style.backgroundColor = Color.clear;
+        closeBtn.style.color = UITheme.TextSecondary;
+        closeBtn.style.fontSize = 16;
+        closeBtn.style.SetBorder(Color.clear, 0);
+        closeBtn.style.SetRadius(4);
+        closeBtn.style.SetPadding(0, 0);
+        closeBtn.style.marginLeft = 12;
+        closeBtn.style.alignSelf = Align.Center;
         AddHoverEffect(closeBtn, Color.clear, UITheme.CardBgHover);
 
         headerBar.Add(headerText);
@@ -783,8 +791,10 @@ public class UIManager : MonoBehaviour
 
             var autoSellToggle = new Toggle("Auto-sprzedaż");
             autoSellToggle.value = pb.AutoSell;
+            autoSellToggle.style.width = Length.Percent(100);
+            autoSellToggle.style.height = 24;
+            autoSellToggle.style.marginBottom = 12;
             StyleToggle(autoSellToggle);
-            autoSellToggle.style.marginBottom = 8;
             autoSellToggle.RegisterValueChangedCallback(evt =>
             {
                 pb.SetAutoSell(evt.newValue);
@@ -825,13 +835,15 @@ public class UIManager : MonoBehaviour
     /// <summary>Minimalne przemalowanie domyślnego suwaka Unity pod motyw dashboardu.</summary>
     private static void StyleSlider(Slider slider)
     {
-        slider.style.height = 28;
-        slider.style.marginBottom = 8;
+        slider.style.height = 20;
+        slider.style.marginBottom = 12;
+        slider.style.paddingTop = 8;
+        slider.style.paddingBottom = 8;
 
-        var container = slider.Q<VisualElement>("unity-container");
-        if (container != null)
+        var input = slider.Q<VisualElement>("unity-input");
+        if (input != null)
         {
-            container.style.height = 28;
+            input.style.height = 20;
         }
 
         var tracker = slider.Q<VisualElement>("unity-tracker");
@@ -844,16 +856,22 @@ public class UIManager : MonoBehaviour
             tracker.style.borderLeftWidth = 0;
             tracker.style.borderRightWidth = 0;
             tracker.style.SetRadius(2);
+            tracker.style.marginTop = 0;
+            tracker.style.marginBottom = 0;
         }
 
         var dragger = slider.Q<VisualElement>("unity-dragger");
         if (dragger != null)
         {
             dragger.style.backgroundColor = UITheme.Accent;
-            dragger.style.width = 14;
-            dragger.style.height = 14;
+            dragger.style.width = 12;
+            dragger.style.height = 12;
             dragger.style.SetBorder(Color.clear, 0);
-            dragger.style.SetRadius(7);
+            dragger.style.SetRadius(6);
+            dragger.style.marginTop = 0;
+            dragger.style.marginBottom = 0;
+            dragger.style.position = Position.Relative;
+            dragger.style.top = -4;
         }
     }
 
@@ -862,30 +880,37 @@ public class UIManager : MonoBehaviour
     {
         toggle.style.color = UITheme.TextPrimary;
         toggle.style.fontSize = 12;
-
-        var checkmark = toggle.Q<VisualElement>("unity-checkmark");
-        if (checkmark != null)
-        {
-            checkmark.style.backgroundColor = UITheme.InsetBg;
-            checkmark.style.borderTopWidth = 1;
-            checkmark.style.borderBottomWidth = 1;
-            checkmark.style.borderLeftWidth = 1;
-            checkmark.style.borderRightWidth = 1;
-            checkmark.style.borderTopColor = UITheme.Border;
-            checkmark.style.borderBottomColor = UITheme.Border;
-            checkmark.style.borderLeftColor = UITheme.Border;
-            checkmark.style.borderRightColor = UITheme.Border;
-            checkmark.style.SetRadius(4);
-            checkmark.style.unityBackgroundImageTintColor = UITheme.Accent;
-        }
+        toggle.style.paddingLeft = 0;
+        toggle.style.paddingRight = 0;
 
         var input = toggle.Q<VisualElement>("unity-input");
         if (input != null)
         {
-            input.style.borderTopWidth = 0;
-            input.style.borderBottomWidth = 0;
-            input.style.borderLeftWidth = 0;
-            input.style.borderRightWidth = 0;
+            input.style.width = 16;
+            input.style.height = 16;
+            input.style.borderTopWidth = 1;
+            input.style.borderBottomWidth = 1;
+            input.style.borderLeftWidth = 1;
+            input.style.borderRightWidth = 1;
+            input.style.borderTopColor = UITheme.Border;
+            input.style.borderBottomColor = UITheme.Border;
+            input.style.borderLeftColor = UITheme.Border;
+            input.style.borderRightColor = UITheme.Border;
+            input.style.SetRadius(3);
+            input.style.marginRight = 8;
+        }
+
+        var checkmark = toggle.Q<VisualElement>("unity-checkmark");
+        if (checkmark != null)
+        {
+            checkmark.style.unityBackgroundImageTintColor = UITheme.Accent;
+        }
+
+        var label = toggle.Q<Label>("unity-text");
+        if (label != null)
+        {
+            label.style.color = UITheme.TextPrimary;
+            label.style.fontSize = 12;
         }
     }
 
