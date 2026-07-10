@@ -6,6 +6,7 @@ using System.Collections.Generic;
 /// <summary>
 /// Centralny zarządca UI. Jedyny punkt otwierania i zamykania paneli.
 /// Buduje całe UI programowo przez kod C# — bez plików UXML/USS.
+/// Kolory i style pochodzą z UITheme.
 /// </summary>
 public class UIManager : MonoBehaviour
 {
@@ -24,15 +25,25 @@ public class UIManager : MonoBehaviour
     private VisualElement _buildMenuPanel;
     private VisualElement _buildingInfoWindow;
     private ScrollView _infoBody;
-    private VisualElement _activeColumn;
+    private Label _windowTitleLabel;
+    private Label _windowSubtitleLabel;
+
+    // Dashboard
     private VisualElement _dashboardView;
     private bool _isDashboardOpen = false;
-    private Dictionary<string, LineChart> _dashboardCharts = new();
+    private readonly Dictionary<string, LineChart> _dashboardCharts = new();
+    private readonly Dictionary<string, Label> _dashboardPriceLabels = new();
+    private readonly Dictionary<string, VisualElement> _dashboardCards = new();
 
     // Elementy HUD
     private Label _moneyLabel;
     private Label _incomeLabel;
-    private Label _tickLabel;
+    private Label _dateLabel;
+    private readonly Dictionary<float, Button> _speedButtons = new();
+    private float _activeSpeed = 1f;
+
+    // Menu budowania — do wyszarzania budynków, na które nie stać
+    private readonly List<(VisualElement card, Label costLabel, BuildingData data)> _buildCards = new();
 
     // Aktualnie wybrany budynek (do panelu info)
     private Building _currentSelectedBuilding;
@@ -44,7 +55,7 @@ public class UIManager : MonoBehaviour
     private Label _panelMonthlyProfitLabel;
     private Label _panelAvgThroughputLabel;
     private Slider _panelPriceSlider;
-    private UnityEngine.UIElements.TextField _panelPriceValueLabel;
+    private TextField _panelPriceField;
 
     void Awake()
     {
@@ -55,7 +66,7 @@ public class UIManager : MonoBehaviour
         }
         Instance = this;
 
-    // Znajdź UIDocument automatycznie na tym samym obiekcie
+        // Znajdź UIDocument automatycznie na tym samym obiekcie
         if (_uiDocument == null)
             _uiDocument = GetComponent<UIDocument>();
 
@@ -70,13 +81,20 @@ public class UIManager : MonoBehaviour
         _root = _uiDocument.rootVisualElement;
         _root.Clear();
 
-        BuildStyles();
+        BuildRoot();
         BuildHUD();
         BuildBuildMenu();
         BuildBuildingInfoWindow();
         BuildDashboard();
 
-        Debug.Log("[UIManager] UI zbudowane.");
+        // Stan początkowy (jeśli managerowie już żyją)
+        var economy = EconomyManager.Instance;
+        if (economy != null)
+        {
+            UpdateMoneyDisplay(economy.PlayerMoney);
+            RefreshBuildMenuAffordability(economy.PlayerMoney);
+        }
+        RefreshSpeedButtons();
     }
 
     void OnEnable()
@@ -87,7 +105,7 @@ public class UIManager : MonoBehaviour
         EventBus.Subscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
         EventBus.Subscribe<ProductionCompletedEvent>(OnProductionCompleted);
         EventBus.Subscribe<TimeUpdatedEvent>(OnTimeUpdated);
-        EventBus.Subscribe<TickEvent>(OnDashboardTick);
+        EventBus.Subscribe<SaleCompletedEvent>(OnSaleCompleted);
     }
 
     void OnDisable()
@@ -98,18 +116,21 @@ public class UIManager : MonoBehaviour
         EventBus.Unsubscribe<BuildingDeselectedEvent>(OnBuildingDeselected);
         EventBus.Unsubscribe<ProductionCompletedEvent>(OnProductionCompleted);
         EventBus.Unsubscribe<TimeUpdatedEvent>(OnTimeUpdated);
-        EventBus.Unsubscribe<TickEvent>(OnDashboardTick);
+        EventBus.Unsubscribe<SaleCompletedEvent>(OnSaleCompleted);
     }
 
-    // --- Budowanie stylów globalnych ---
+    // --- Root ---
 
-    private void BuildStyles()
+    private void BuildRoot()
     {
-        // Globalne style przez USS string — aplikowane do roota
         _root.style.width = Length.Percent(100);
         _root.style.height = Length.Percent(100);
         _root.style.flexDirection = FlexDirection.Column;
         _root.style.justifyContent = Justify.SpaceBetween;
+
+        // Root nie może łapać kliknięć — inaczej IsPointerOverUI()
+        // uznawałby cały ekran za UI.
+        _root.pickingMode = PickingMode.Ignore;
     }
 
     // --- HUD (górny pasek) ---
@@ -120,108 +141,143 @@ public class UIManager : MonoBehaviour
         _hudPanel.style.flexDirection = FlexDirection.Row;
         _hudPanel.style.justifyContent = Justify.SpaceBetween;
         _hudPanel.style.alignItems = Align.Center;
-        _hudPanel.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.92f);
-        _hudPanel.style.paddingLeft = 16;
-        _hudPanel.style.paddingRight = 16;
-        _hudPanel.style.paddingTop = 8;
-        _hudPanel.style.paddingBottom = 8;
-        _hudPanel.style.height = 48;
+        _hudPanel.style.backgroundColor = UITheme.PanelBg;
+        _hudPanel.style.borderBottomWidth = 1;
+        _hudPanel.style.borderBottomColor = UITheme.Border;
+        _hudPanel.style.SetPadding(20, 0);
+        _hudPanel.style.height = 52;
 
-        // Lewa strona: pieniądze
+        // Lewa strona: pieniądze + dochód (pill)
         var leftGroup = new VisualElement();
         leftGroup.style.flexDirection = FlexDirection.Row;
         leftGroup.style.alignItems = Align.Center;
 
-        _moneyLabel = new Label("$50 000");
-        _moneyLabel.AddToClassList("text-body");
-        _moneyLabel.style.fontSize = 18;
+        _moneyLabel = new Label(UITheme.FormatMoney(50000));
+        _moneyLabel.style.color = UITheme.TextPrimary;
+        _moneyLabel.style.fontSize = 19;
         _moneyLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-        _moneyLabel.style.marginRight = 24;
-        _moneyLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _moneyLabel.style.marginRight = 12;
 
-        _incomeLabel = new Label("+$0/tick");
-        _incomeLabel.AddToClassList("text-label");
-        _incomeLabel.style.color = new Color(0.3f, 0.85f, 0.5f);
+        _incomeLabel = new Label("+$0/h");
+        _incomeLabel.style.color = UITheme.TextSecondary;
+        _incomeLabel.style.backgroundColor = UITheme.NeutralSoft;
+        _incomeLabel.style.fontSize = 11;
+        _incomeLabel.style.SetRadius(10);
+        _incomeLabel.style.SetPadding(8, 3);
 
         leftGroup.Add(_moneyLabel);
         leftGroup.Add(_incomeLabel);
 
-        // Prawa strona: czas i kontrola prędkości
+        // Prawa strona: data + segmentowana kontrolka prędkości + Ekonomia
         var rightGroup = new VisualElement();
         rightGroup.style.flexDirection = FlexDirection.Row;
         rightGroup.style.alignItems = Align.Center;
 
-        _tickLabel = new Label("Tick: 0");
-        _tickLabel.AddToClassList("text-muted");
-        _tickLabel.style.marginRight = 16;
+        _dateLabel = new Label("—");
+        _dateLabel.style.color = UITheme.TextSecondary;
+        _dateLabel.style.fontSize = 12;
+        _dateLabel.style.marginRight = 16;
 
-        // Przyciski prędkości i dashboard
-        var speedGroup = new VisualElement();
-        speedGroup.style.flexDirection = FlexDirection.Row;
+        var speedSegment = new VisualElement();
+        speedSegment.style.flexDirection = FlexDirection.Row;
+        speedSegment.style.alignItems = Align.Center;
+        speedSegment.style.backgroundColor = UITheme.InsetBg;
+        speedSegment.style.SetBorder(UITheme.Border);
+        speedSegment.style.SetRadius(6);
+        speedSegment.style.SetPadding(2, 2);
+        speedSegment.style.height = 28;
 
         foreach (var (label, speed) in new (string, float)[]
-            { ("⏸", 0f), ("×1", 1f), ("×3", 3f) })
+            { ("II", 0f), ("×1", 1f), ("×3", 3f) })
         {
-            var btn = CreateSpeedButton(label, speed);
-            speedGroup.Add(btn);
+            var btn = CreateSegmentButton(label, () => SetGameSpeed(speed));
+            _speedButtons[speed] = btn;
+
+            // Hover nie może nadpisywać podświetlenia aktywnej prędkości
+            float capturedSpeed = speed;
+            btn.RegisterCallback<MouseEnterEvent>(_ =>
+            {
+                if (!Mathf.Approximately(capturedSpeed, _activeSpeed))
+                    btn.style.backgroundColor = UITheme.NeutralSoft;
+            });
+            btn.RegisterCallback<MouseLeaveEvent>(_ => RefreshSpeedButtons());
+
+            speedSegment.Add(btn);
         }
 
-        var economyBtn = new Button(() => ToggleDashboard());
-        economyBtn.text = "[Economy]";
-        economyBtn.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
-        economyBtn.style.color = new Color(0.8f, 0.85f, 0.9f);
-        economyBtn.style.borderTopWidth = 1;
-        economyBtn.style.borderBottomWidth = 1;
-        economyBtn.style.borderLeftWidth = 1;
-        economyBtn.style.borderRightWidth = 1;
-        economyBtn.style.borderTopColor = new Color(0.25f, 0.32f, 0.48f);
-        economyBtn.style.borderBottomColor = new Color(0.25f, 0.32f, 0.48f);
-        economyBtn.style.borderLeftColor = new Color(0.25f, 0.32f, 0.48f);
-        economyBtn.style.borderRightColor = new Color(0.25f, 0.32f, 0.48f);
-        economyBtn.style.marginLeft = 8;
-        economyBtn.style.paddingLeft = 10;
-        economyBtn.style.paddingRight = 10;
-        economyBtn.style.height = 28;
-        economyBtn.style.borderTopLeftRadius = 4;
-        economyBtn.style.borderTopRightRadius = 4;
-        economyBtn.style.borderBottomLeftRadius = 4;
-        economyBtn.style.borderBottomRightRadius = 4;
-        // TODO: zamienić na .btn-hud-dark klasa w Theme.uss
-        speedGroup.Add(economyBtn);
+        var economyBtn = CreateToolbarButton("Ekonomia", ToggleDashboard);
+        economyBtn.style.marginLeft = 12;
+        AddHoverEffect(economyBtn, Color.clear, UITheme.CardBgHover);
 
-        rightGroup.Add(_tickLabel);
-        rightGroup.Add(speedGroup);
+        rightGroup.Add(_dateLabel);
+        rightGroup.Add(speedSegment);
+        rightGroup.Add(economyBtn);
 
         _hudPanel.Add(leftGroup);
         _hudPanel.Add(rightGroup);
         _root.Add(_hudPanel);
     }
 
-    private Button CreateSpeedButton(string label, float speed)
+    /// <summary>Przycisk-duch: przezroczysty, cienka linia, do pasków narzędzi.</summary>
+    private Button CreateToolbarButton(string label, System.Action onClick)
     {
-        var btn = new Button(() => OnSpeedButtonClicked(speed));
-        btn.text = label;
-        btn.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
-        btn.style.color = new Color(0.8f, 0.85f, 0.9f);
-        btn.style.borderTopWidth = 1;
-        btn.style.borderBottomWidth = 1;
-        btn.style.borderLeftWidth = 1;
-        btn.style.borderRightWidth = 1;
-        btn.style.borderTopColor = new Color(0.25f, 0.32f, 0.48f);
-        btn.style.borderBottomColor = new Color(0.25f, 0.32f, 0.48f);
-        btn.style.borderLeftColor = new Color(0.25f, 0.32f, 0.48f);
-        btn.style.borderRightColor = new Color(0.25f, 0.32f, 0.48f);
-        btn.style.marginLeft = 4;
-        btn.style.paddingLeft = 10;
-        btn.style.paddingRight = 10;
+        var btn = new Button(onClick) { text = label };
+        btn.style.backgroundColor = Color.clear;
+        btn.style.color = UITheme.TextSecondary;
+        btn.style.SetBorder(UITheme.Border);
+        btn.style.SetRadius(6);
+        btn.style.SetMargin(0, 0);
+        btn.style.paddingLeft = 12;
+        btn.style.paddingRight = 12;
         btn.style.height = 28;
-        btn.style.borderTopLeftRadius = 4;
-        btn.style.borderTopRightRadius = 4;
-        btn.style.borderBottomLeftRadius = 4;
-        btn.style.borderBottomRightRadius = 4;
-        btn.AddToClassList("text-label");
-        // TODO: dodać .btn-hud-dark klasa do Theme.uss dla przycisków kontroli (speed, economy)
         return btn;
+    }
+
+    /// <summary>Płaski przycisk wewnątrz segmentowanej kontrolki.</summary>
+    private Button CreateSegmentButton(string label, System.Action onClick)
+    {
+        var btn = new Button(onClick) { text = label };
+        btn.style.backgroundColor = Color.clear;
+        btn.style.color = UITheme.TextSecondary;
+        btn.style.SetBorder(Color.clear, 0);
+        btn.style.SetRadius(4);
+        btn.style.SetMargin(1, 0);
+        btn.style.SetPadding(0, 0);
+        btn.style.width = 32;
+        btn.style.height = 22;
+        btn.style.fontSize = 11;
+        btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+        return btn;
+    }
+
+    private static void AddHoverEffect(VisualElement element, Color normal, Color hover)
+    {
+        element.RegisterCallback<MouseEnterEvent>(_ => element.style.backgroundColor = hover);
+        element.RegisterCallback<MouseLeaveEvent>(_ => element.style.backgroundColor = normal);
+    }
+
+    private void SetGameSpeed(float speed)
+    {
+        GameManager.Instance?.SetGameSpeed(speed);
+        _activeSpeed = speed;
+        RefreshSpeedButtons();
+    }
+
+    private void RefreshSpeedButtons()
+    {
+        foreach (var kv in _speedButtons)
+        {
+            bool active = Mathf.Approximately(kv.Key, _activeSpeed);
+            kv.Value.style.backgroundColor = active ? UITheme.CardBgActive : Color.clear;
+            kv.Value.style.color = active ? UITheme.TextPrimary : UITheme.TextSecondary;
+        }
+    }
+
+    private void UpdateMoneyDisplay(float amount)
+    {
+        if (_moneyLabel == null) return;
+        _moneyLabel.text = UITheme.FormatMoney(amount);
+        _moneyLabel.style.color = amount < 5000 ? UITheme.Negative : UITheme.TextPrimary;
     }
 
     // --- Dashboard ---
@@ -229,7 +285,6 @@ public class UIManager : MonoBehaviour
     private void ToggleDashboard()
     {
         _isDashboardOpen = !_isDashboardOpen;
-        Debug.Log($"[Dashboard] Toggle: {_isDashboardOpen}");
 
         if (_isDashboardOpen)
         {
@@ -237,12 +292,15 @@ public class UIManager : MonoBehaviour
             _buildMenuPanel.style.display = DisplayStyle.None;
             _buildingInfoWindow.style.display = DisplayStyle.None;
             _dashboardView.style.display = DisplayStyle.Flex;
+            UpdateDashboardCharts();
         }
         else
         {
             _dashboardView.style.display = DisplayStyle.None;
             _hudPanel.style.display = DisplayStyle.Flex;
             _buildMenuPanel.style.display = DisplayStyle.Flex;
+            if (_currentSelectedBuilding != null)
+                _buildingInfoWindow.style.display = DisplayStyle.Flex;
         }
     }
 
@@ -256,158 +314,121 @@ public class UIManager : MonoBehaviour
         _dashboardView.style.height = Length.Percent(100);
         _dashboardView.style.display = DisplayStyle.None;
         _dashboardView.style.flexDirection = FlexDirection.Column;
-        _dashboardView.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.98f);
+        _dashboardView.style.backgroundColor = UITheme.OverlayBg;
 
-        // Top bar: Close button
+        // Górny pasek: tytuł + zamknięcie
         var topBar = new VisualElement();
         topBar.style.height = 48;
-        topBar.style.backgroundColor = new Color(0.1f, 0.12f, 0.18f, 0.95f);
+        topBar.style.backgroundColor = UITheme.PanelBg;
+        topBar.style.borderBottomWidth = 1;
+        topBar.style.borderBottomColor = UITheme.Border;
         topBar.style.flexDirection = FlexDirection.Row;
         topBar.style.alignItems = Align.Center;
-        topBar.style.paddingLeft = 16;
-        topBar.style.paddingRight = 16;
+        topBar.style.SetPadding(16, 0);
 
-        var titleLabel = new Label("ECONOMY DASHBOARD");
-        titleLabel.style.fontSize = 18;
-        titleLabel.style.color = new Color(0.45f, 0.58f, 0.75f);
+        var titleLabel = new Label("PANEL EKONOMII");
+        titleLabel.style.fontSize = 13;
+        titleLabel.style.letterSpacing = 2f;
+        titleLabel.style.color = UITheme.TextPrimary;
         titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         titleLabel.style.flexGrow = 1;
-        titleLabel.AddToClassList("text-body");
         topBar.Add(titleLabel);
 
-        var closeBtn = new Button(() => ToggleDashboard());
-        closeBtn.text = "✕";
-        closeBtn.style.width = 40;
-        closeBtn.style.height = 28;
-        closeBtn.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
-        closeBtn.style.color = new Color(0.7f, 0.75f, 0.85f);
-        closeBtn.AddToClassList("text-label");
+        var closeBtn = CreateToolbarButton("✕", ToggleDashboard);
+        closeBtn.style.width = 34;
+        AddHoverEffect(closeBtn, Color.clear, UITheme.CardBgHover);
         topBar.Add(closeBtn);
 
         _dashboardView.Add(topBar);
 
-        // Content area with two columns
+        // Zawartość: dwie kolumny
         var content = new VisualElement();
         content.style.flexGrow = 1;
         content.style.flexDirection = FlexDirection.Row;
-        content.style.paddingLeft = 16;
-        content.style.paddingRight = 16;
-        content.style.paddingTop = 16;
-        content.style.paddingBottom = 16;
+        content.style.SetPadding(16);
 
-        // Left column: Product selector
+        // Lewa kolumna: filtry produktów
         var leftCol = new VisualElement();
-        leftCol.style.flexBasis = 0;
-        leftCol.style.flexGrow = 1;
+        leftCol.style.width = 240;
         leftCol.style.marginRight = 16;
-        leftCol.style.maxWidth = new Length(300, LengthUnit.Pixel);
-        leftCol.style.backgroundColor = new Color(0.10f, 0.13f, 0.2f, 0.9f);
-        leftCol.style.borderTopWidth = 1;
-        leftCol.style.borderBottomWidth = 1;
-        leftCol.style.borderLeftWidth = 1;
-        leftCol.style.borderRightWidth = 1;
-        leftCol.style.borderTopColor = new Color(0.2f, 0.27f, 0.4f);
-        leftCol.style.borderBottomColor = new Color(0.2f, 0.27f, 0.4f);
-        leftCol.style.borderLeftColor = new Color(0.2f, 0.27f, 0.4f);
-        leftCol.style.borderRightColor = new Color(0.2f, 0.27f, 0.4f);
-        leftCol.style.borderTopLeftRadius = 4;
-        leftCol.style.borderTopRightRadius = 4;
-        leftCol.style.borderBottomLeftRadius = 4;
-        leftCol.style.borderBottomRightRadius = 4;
-        leftCol.style.paddingLeft = 12;
-        leftCol.style.paddingRight = 12;
-        leftCol.style.paddingTop = 12;
-        leftCol.style.paddingBottom = 12;
-        leftCol.AddToClassList("panel-card");
+        leftCol.style.backgroundColor = UITheme.CardBg;
+        leftCol.style.SetBorder(UITheme.Border);
+        leftCol.style.SetRadius(6);
+        leftCol.style.SetPadding(12);
+        leftCol.style.alignSelf = Align.FlexStart;
 
-        var label = new Label("PRODUKTY");
-        label.style.fontSize = 12;
-        label.style.color = new Color(0.45f, 0.58f, 0.75f);
-        label.style.unityFontStyleAndWeight = FontStyle.Bold;
-        label.style.marginBottom = 8;
-        label.AddToClassList("text-label");
-        leftCol.Add(label);
-
-        var productDb2 = EconomyManager.Instance?.ProductDatabase;
-        if (productDb2 != null)
-        {
-            foreach (var product in productDb2.AllProducts)
-            {
-                var toggle = new Toggle(product.name);
-                toggle.value = true;
-                toggle.style.marginBottom = 4;
-                toggle.AddToClassList("text-body");
-                leftCol.Add(toggle);
-            }
-        }
-
-        // Right column: Charts and stats
-        var rightCol = new VisualElement();
-        rightCol.style.flexBasis = 0;
-        rightCol.style.flexGrow = 2;
-        rightCol.style.flexDirection = FlexDirection.Column;
-
-        var statsLabel = new Label("STATYSTYKI PRODUKTÓW");
-        statsLabel.style.fontSize = 12;
-        statsLabel.style.color = new Color(0.45f, 0.58f, 0.75f);
-        statsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-        statsLabel.style.marginBottom = 12;
-        statsLabel.AddToClassList("text-label");
-        rightCol.Add(statsLabel);
-
-        // Simple table/list of product stats
-        var statsScroll = new ScrollView(ScrollViewMode.Vertical);
-        statsScroll.style.flexGrow = 1;
-        statsScroll.style.backgroundColor = new Color(0.10f, 0.13f, 0.2f, 0.9f);
-        statsScroll.style.borderTopWidth = 1;
-        statsScroll.style.borderBottomWidth = 1;
-        statsScroll.style.borderLeftWidth = 1;
-        statsScroll.style.borderRightWidth = 1;
-        statsScroll.style.borderTopColor = new Color(0.2f, 0.27f, 0.4f);
-        statsScroll.style.borderBottomColor = new Color(0.2f, 0.27f, 0.4f);
-        statsScroll.style.borderLeftColor = new Color(0.2f, 0.27f, 0.4f);
-        statsScroll.style.borderRightColor = new Color(0.2f, 0.27f, 0.4f);
-        statsScroll.style.borderTopLeftRadius = 4;
-        statsScroll.style.borderTopRightRadius = 4;
-        statsScroll.style.borderBottomLeftRadius = 4;
-        statsScroll.style.borderBottomRightRadius = 4;
-        statsScroll.style.paddingLeft = 12;
-        statsScroll.style.paddingRight = 12;
-        statsScroll.style.paddingTop = 12;
-        statsScroll.style.paddingBottom = 12;
-        statsScroll.AddToClassList("panel-card");
-        statsScroll.AddToClassList("chart-container");
+        AddSectionLabel(leftCol, "PRODUKTY");
 
         var productDb = EconomyManager.Instance?.ProductDatabase;
         if (productDb != null)
         {
-            Debug.Log($"[Dashboard] Creating charts for {productDb.AllProducts.Count} products");
             foreach (var product in productDb.AllProducts)
             {
-                var container = new VisualElement();
-                container.style.flexDirection = FlexDirection.Column;
-                container.style.marginBottom = 16;
-                container.style.paddingBottom = 8;
-                container.style.borderBottomWidth = 1;
-                container.style.borderBottomColor = new Color(0.2f, 0.27f, 0.4f);
-
-                var nameLabel = new Label(product.name);
-                nameLabel.AddToClassList("text-body");
-                nameLabel.style.marginBottom = 6;
-
-                var chart = new LineChart();
-                chart.style.width = Length.Percent(100);
-                chart.style.height = 100;
-                _dashboardCharts[product.id] = chart;
-                Debug.Log($"[Dashboard] Created chart for {product.name}");
-
-                container.Add(nameLabel);
-                container.Add(chart);
-                statsScroll.Add(container);
+                string productId = product.id;
+                var toggle = new Toggle(product.name) { value = true };
+                toggle.style.marginBottom = 4;
+                StyleToggle(toggle);
+                toggle.RegisterValueChangedCallback(evt =>
+                {
+                    if (_dashboardCards.TryGetValue(productId, out var card))
+                        card.style.display = evt.newValue ? DisplayStyle.Flex : DisplayStyle.None;
+                });
+                leftCol.Add(toggle);
             }
         }
 
-        rightCol.Add(statsScroll);
+        // Prawa kolumna: wykresy cen
+        var rightCol = new VisualElement();
+        rightCol.style.flexBasis = 0;
+        rightCol.style.flexGrow = 1;
+        rightCol.style.flexDirection = FlexDirection.Column;
+
+        AddSectionLabel(rightCol, "CENY PRODUKTÓW (OSTATNIE GODZINY)");
+
+        var chartsScroll = new ScrollView(ScrollViewMode.Vertical);
+        chartsScroll.style.flexGrow = 1;
+
+        if (productDb != null)
+        {
+            foreach (var product in productDb.AllProducts)
+            {
+                var card = new VisualElement();
+                card.style.backgroundColor = UITheme.CardBg;
+                card.style.SetBorder(UITheme.Border);
+                card.style.SetRadius(6);
+                card.style.SetPadding(10);
+                card.style.marginBottom = 10;
+
+                var headerRow = new VisualElement();
+                headerRow.style.flexDirection = FlexDirection.Row;
+                headerRow.style.justifyContent = Justify.SpaceBetween;
+                headerRow.style.marginBottom = 6;
+
+                var nameLabel = new Label(product.name);
+                nameLabel.style.color = UITheme.TextPrimary;
+                nameLabel.style.fontSize = 12;
+                nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+                var priceLabel = new Label("—");
+                priceLabel.style.color = UITheme.TextSecondary;
+                priceLabel.style.fontSize = 12;
+
+                headerRow.Add(nameLabel);
+                headerRow.Add(priceLabel);
+
+                var chart = new LineChart();
+
+                card.Add(headerRow);
+                card.Add(chart);
+                chartsScroll.Add(card);
+
+                _dashboardCharts[product.id] = chart;
+                _dashboardPriceLabels[product.id] = priceLabel;
+                _dashboardCards[product.id] = card;
+            }
+        }
+
+        rightCol.Add(chartsScroll);
 
         content.Add(leftCol);
         content.Add(rightCol);
@@ -416,31 +437,22 @@ public class UIManager : MonoBehaviour
         _root.Add(_dashboardView);
     }
 
-    private void OnDashboardTick(TickEvent e)
+    private void UpdateDashboardCharts()
     {
-        Debug.Log($"[Dashboard] OnDashboardTick called: open={_isDashboardOpen}, display={_dashboardView.style.display}");
-
-        if (!(_isDashboardOpen && _dashboardView.style.display == DisplayStyle.Flex))
-            return;
-
         var stats = StatisticsManager.Instance;
-        if (stats == null) { Debug.LogWarning("[Dashboard] Brak StatisticsManager w scenie!"); return; }
-
         var productDb = EconomyManager.Instance?.ProductDatabase;
-        if (productDb == null) { Debug.LogWarning("[Dashboard] Brak ProductDatabase!"); return; }
+        if (stats == null || productDb == null) return;
 
         foreach (var product in productDb.AllProducts)
         {
-            if (_dashboardCharts.TryGetValue(product.id, out var chart))
-            {
-                var history = stats.GetHourlyPriceHistory(product.id);
-                Debug.Log($"[Dashboard] {product.name}: {history.Count} price points");
-                chart.SetData(history);
-            }
-            else
-            {
-                Debug.LogWarning($"[Dashboard] Brak wykresu dla id='{product.id}'");
-            }
+            if (!_dashboardCharts.TryGetValue(product.id, out var chart))
+                continue;
+
+            var history = stats.GetHourlyPriceHistory(product.id);
+            chart.SetData(history);
+
+            if (_dashboardPriceLabels.TryGetValue(product.id, out var priceLabel))
+                priceLabel.text = history.Count > 0 ? $"${history[history.Count - 1]:F2}" : "—";
         }
     }
 
@@ -449,14 +461,17 @@ public class UIManager : MonoBehaviour
     private void BuildBuildMenu()
     {
         _buildMenuPanel = new VisualElement();
-        _buildMenuPanel.style.flexDirection = FlexDirection.Row;
-        _buildMenuPanel.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.92f);
-        _buildMenuPanel.style.paddingLeft = 12;
-        _buildMenuPanel.style.paddingRight = 12;
-        _buildMenuPanel.style.paddingTop = 8;
-        _buildMenuPanel.style.paddingBottom = 8;
-        _buildMenuPanel.style.height = 90;
-        _buildMenuPanel.style.alignItems = Align.Center;
+        _buildMenuPanel.style.flexDirection = FlexDirection.Column;
+        _buildMenuPanel.style.backgroundColor = UITheme.PanelBg;
+        _buildMenuPanel.style.borderTopWidth = 1;
+        _buildMenuPanel.style.borderTopColor = UITheme.Border;
+        _buildMenuPanel.style.SetPadding(12, 8);
+
+        AddSectionLabel(_buildMenuPanel, "BUDOWA");
+
+        var cardsRow = new ScrollView(ScrollViewMode.Horizontal);
+        cardsRow.style.flexDirection = FlexDirection.Row;
+        _buildMenuPanel.Add(cardsRow);
 
         if (_buildingDatabase == null)
         {
@@ -468,7 +483,7 @@ public class UIManager : MonoBehaviour
         foreach (var buildingData in _buildingDatabase.AllBuildings)
         {
             var btn = CreateBuildingButton(buildingData);
-            _buildMenuPanel.Add(btn);
+            cardsRow.Add(btn);
         }
 
         _root.Add(_buildMenuPanel);
@@ -476,65 +491,61 @@ public class UIManager : MonoBehaviour
 
     private VisualElement CreateBuildingButton(BuildingData data)
     {
-        var container = new VisualElement();
-        container.style.flexDirection = FlexDirection.Column;
-        container.style.alignItems = Align.Center;
-        container.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
-        container.style.borderTopWidth = 1;
-        container.style.borderBottomWidth = 1;
-        container.style.borderLeftWidth = 1;
-        container.style.borderRightWidth = 1;
-        container.style.borderTopColor = new Color(0.25f, 0.32f, 0.48f);
-        container.style.borderBottomColor = new Color(0.25f, 0.32f, 0.48f);
-        container.style.borderLeftColor = new Color(0.25f, 0.32f, 0.48f);
-        container.style.borderRightColor = new Color(0.25f, 0.32f, 0.48f);
-        container.style.borderTopLeftRadius = 6;
-        container.style.borderTopRightRadius = 6;
-        container.style.borderBottomLeftRadius = 6;
-        container.style.borderBottomRightRadius = 6;
-        container.style.paddingLeft = 10;
-        container.style.paddingRight = 10;
-        container.style.paddingTop = 6;
-        container.style.paddingBottom = 6;
-        container.style.marginRight = 8;
-        container.style.width = 90;
+        var card = new VisualElement();
+        card.style.flexDirection = FlexDirection.Column;
+        card.style.alignItems = Align.Center;
+        card.style.justifyContent = Justify.Center;
+        card.style.backgroundColor = UITheme.CardBg;
+        card.style.SetBorder(UITheme.Border);
+        card.style.SetRadius(8);
+        card.style.SetPadding(10, 6);
+        card.style.marginRight = 8;
+        card.style.width = 112;
+        card.style.height = 56;
 
+        // Jedna linia z wielokropkiem — karty zawsze mają identyczne wymiary
         var nameLabel = new Label(data.displayName);
-        nameLabel.AddToClassList("text-label");
+        nameLabel.style.color = UITheme.TextPrimary;
         nameLabel.style.fontSize = 12;
         nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         nameLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-        nameLabel.style.marginTop = 6;
-        nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        nameLabel.style.whiteSpace = WhiteSpace.NoWrap;
+        nameLabel.style.overflow = Overflow.Hidden;
+        nameLabel.style.textOverflow = TextOverflow.Ellipsis;
+        nameLabel.style.maxWidth = Length.Percent(100);
 
-        var costLabel = new Label($"${data.constructionCost:F0}");
-        costLabel.AddToClassList("text-muted");
+        var costLabel = new Label(UITheme.FormatMoney(data.constructionCost));
+        costLabel.style.color = UITheme.TextSecondary;
+        costLabel.style.fontSize = 11;
         costLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-        costLabel.style.color = new Color(0.3f, 0.85f, 0.5f);
+        costLabel.style.marginTop = 2;
 
-        container.Add(nameLabel);
-        container.Add(costLabel);
+        card.Add(nameLabel);
+        card.Add(costLabel);
 
         // Kliknięcie uruchamia tryb stawiania
-        container.RegisterCallback<ClickEvent>(evt =>
+        card.RegisterCallback<ClickEvent>(evt =>
         {
             _buildingPlacer?.StartPlacing(data);
         });
 
-        // Hover effect
-        container.RegisterCallback<MouseEnterEvent>(evt =>
-        {
-            container.style.backgroundColor = new Color(0.18f, 0.24f, 0.38f);
-        });
-        container.RegisterCallback<MouseLeaveEvent>(evt =>
-        {
-            container.style.backgroundColor = new Color(0.12f, 0.16f, 0.25f);
-        });
+        AddHoverEffect(card, UITheme.CardBg, UITheme.CardBgHover);
 
-        return container;
+        _buildCards.Add((card, costLabel, data));
+        return card;
     }
 
-    // --- Building Info Window (popup, nie panel) ---
+    private void RefreshBuildMenuAffordability(float money)
+    {
+        foreach (var (card, costLabel, data) in _buildCards)
+        {
+            bool affordable = money >= data.constructionCost;
+            card.style.opacity = affordable ? 1f : 0.4f;
+            costLabel.style.color = affordable ? UITheme.TextSecondary : UITheme.Negative;
+        }
+    }
+
+    // --- Building Info Window (okno wyśrodkowane) ---
 
     private void BuildBuildingInfoWindow()
     {
@@ -542,200 +553,186 @@ public class UIManager : MonoBehaviour
         _buildingInfoWindow.style.position = Position.Absolute;
         _buildingInfoWindow.style.left = new Length(50, LengthUnit.Percent);
         _buildingInfoWindow.style.top = new Length(50, LengthUnit.Percent);
-        _buildingInfoWindow.style.translate = new Translate(new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
-        _buildingInfoWindow.style.width = 760;
-        _buildingInfoWindow.style.height = 560;
-        _buildingInfoWindow.style.backgroundColor = new Color(0.08f, 0.10f, 0.15f, 0.95f);
-        _buildingInfoWindow.style.borderTopWidth = 2;
-        _buildingInfoWindow.style.borderBottomWidth = 2;
-        _buildingInfoWindow.style.borderLeftWidth = 2;
-        _buildingInfoWindow.style.borderRightWidth = 2;
-        _buildingInfoWindow.style.borderTopColor = new Color(0.3f, 0.45f, 0.65f);
-        _buildingInfoWindow.style.borderBottomColor = new Color(0.3f, 0.45f, 0.65f);
-        _buildingInfoWindow.style.borderLeftColor = new Color(0.3f, 0.45f, 0.65f);
-        _buildingInfoWindow.style.borderRightColor = new Color(0.3f, 0.45f, 0.65f);
-        _buildingInfoWindow.style.borderTopLeftRadius = 8;
-        _buildingInfoWindow.style.borderTopRightRadius = 8;
-        _buildingInfoWindow.style.borderBottomLeftRadius = 8;
-        _buildingInfoWindow.style.borderBottomRightRadius = 8;
-        _buildingInfoWindow.style.paddingLeft = 14;
-        _buildingInfoWindow.style.paddingRight = 14;
-        _buildingInfoWindow.style.paddingTop = 14;
-        _buildingInfoWindow.style.paddingBottom = 14;
+        _buildingInfoWindow.style.translate = new Translate(
+            new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
+        _buildingInfoWindow.style.width = 740;
+        _buildingInfoWindow.style.maxHeight = 540;
+        _buildingInfoWindow.style.backgroundColor = UITheme.PanelBg;
+        _buildingInfoWindow.style.SetBorder(UITheme.BorderStrong);
+        _buildingInfoWindow.style.SetRadius(8);
         _buildingInfoWindow.style.display = DisplayStyle.None;
 
+        // Nagłówek okna: typ + nazwa po lewej, ✕ po prawej
+        var headerBar = new VisualElement();
+        headerBar.style.flexDirection = FlexDirection.Row;
+        headerBar.style.alignItems = Align.Center;
+        headerBar.style.SetPadding(14, 10);
+        headerBar.style.borderBottomWidth = 1;
+        headerBar.style.borderBottomColor = UITheme.Border;
+
+        var headerText = new VisualElement();
+        headerText.style.flexGrow = 1;
+
+        _windowSubtitleLabel = new Label("");
+        _windowSubtitleLabel.style.color = UITheme.TextHeader;
+        _windowSubtitleLabel.style.fontSize = 10;
+
+        _windowTitleLabel = new Label("");
+        _windowTitleLabel.style.color = UITheme.TextPrimary;
+        _windowTitleLabel.style.fontSize = 16;
+        _windowTitleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+        headerText.Add(_windowSubtitleLabel);
+        headerText.Add(_windowTitleLabel);
+
+        var closeBtn = CreateToolbarButton("✕", CloseBuildingInfoWindow);
+        closeBtn.style.width = 34;
+        AddHoverEffect(closeBtn, Color.clear, UITheme.CardBgHover);
+
+        headerBar.Add(headerText);
+        headerBar.Add(closeBtn);
+        _buildingInfoWindow.Add(headerBar);
+
+        // Treść w ScrollView
+        _infoBody = new ScrollView(ScrollViewMode.Vertical);
+        _infoBody.style.flexGrow = 1;
+        _infoBody.style.SetPadding(14, 12);
+        _buildingInfoWindow.Add(_infoBody);
+
         _root.Add(_buildingInfoWindow);
+    }
+
+    private void CloseBuildingInfoWindow()
+    {
+        _currentSelectedBuilding = null;
+        _buildingInfoWindow.style.display = DisplayStyle.None;
     }
 
     // --- Aktualizacja paneli ---
 
     private void OnMoneyChanged(PlayerMoneyChangedEvent e)
     {
-        if (_moneyLabel == null) return;
-        _moneyLabel.text = $"${e.NewAmount:F0}";
+        UpdateMoneyDisplay(e.NewAmount);
+        RefreshBuildMenuAffordability(e.NewAmount);
+    }
 
-        // Kolor czerwony gdy mało pieniędzy
-        _moneyLabel.style.color = e.NewAmount < 5000
-            ? new Color(0.9f, 0.3f, 0.3f)
-            : new Color(0.9f, 0.95f, 1f);
+    private void OnSaleCompleted(SaleCompletedEvent e)
+    {
+        _incomeThisTick += e.Revenue;
     }
 
     private void OnTick(TickEvent e)
     {
+        // Dochód z minionego ticka (1 tick = 1 godzina gry)
+        if (_incomeLabel != null)
+        {
+            bool positive = _incomeThisTick > 0f;
+            _incomeLabel.text = $"+{UITheme.FormatMoney(_incomeThisTick)}/h";
+            _incomeLabel.style.color = positive ? UITheme.Positive : UITheme.TextSecondary;
+            _incomeLabel.style.backgroundColor = positive ? UITheme.PositiveSoft : UITheme.NeutralSoft;
+        }
         _incomeThisTick = 0f;
+
         if (_currentSelectedBuilding != null)
             RefreshBuildingInfoPanel(_currentSelectedBuilding);
+
+        if (_isDashboardOpen)
+            UpdateDashboardCharts();
     }
 
     private void OnBuildingSelected(BuildingSelectedEvent e)
     {
+        if (_isDashboardOpen) return;
+
         _currentSelectedBuilding = e.Building;
         _buildingInfoWindow.style.display = DisplayStyle.Flex;
         BuildBuildingInfoWindowContent(e.Building);
     }
-    
+
     private void BuildBuildingInfoWindowContent(Building building)
     {
-        _buildingInfoWindow.Clear();
+        _infoBody.Clear();
 
         if (building == null) return;
 
-        // Cała treść trafia do ScrollView
-        _infoBody = new ScrollView(ScrollViewMode.Vertical);
-        _infoBody.style.flexGrow = 1;
-        _buildingInfoWindow.Add(_infoBody);
-
-        var scrollbar = _infoBody.Q<ScrollView>()?.verticalScroller;
-        if (scrollbar != null)
-        {
-            scrollbar.style.width = 8;
-            scrollbar.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
-        }
+        _windowTitleLabel.text = building.DisplayName;
+        _windowSubtitleLabel.text = $"{GetBuildingType(building)}  ·  ({building.GridX}, {building.GridY})";
 
         // === UKŁAD DWUKOLUMNOWY ===
         var columns = new VisualElement();
         columns.style.flexDirection = FlexDirection.Row;
-        columns.style.flexGrow = 1;
         _infoBody.Add(columns);
 
         var leftColumn = new VisualElement();
         leftColumn.style.flexGrow = 1;
         leftColumn.style.flexBasis = 0;
-        leftColumn.style.marginRight = 8;
+        leftColumn.style.marginRight = 10;
 
         var rightColumn = new VisualElement();
         rightColumn.style.flexGrow = 1;
         rightColumn.style.flexBasis = 0;
-        rightColumn.style.marginLeft = 8;
+        rightColumn.style.marginLeft = 10;
 
         columns.Add(leftColumn);
         columns.Add(rightColumn);
 
-        // Domyślnie budujemy w lewej kolumnie
-        _activeColumn = leftColumn;
-
-        // === NAGŁÓWEK ===
-        var header = new VisualElement();
-        header.style.marginBottom = 12;
-
-        var typeLabel = new Label(GetBuildingType(building));
-        typeLabel.AddToClassList("text-label");
-
-        var nameLabel = new Label(building.DisplayName);
-        nameLabel.AddToClassList("text-panel-title");
-
-        var posLabel = new Label($"({building.GridX}, {building.GridY})");
-        posLabel.AddToClassList("text-muted");
-
-        header.Add(typeLabel);
-        header.Add(nameLabel);
-        header.Add(posLabel);
-        _activeColumn.Add(header);
-
-        AddSeparator();
-
-        // === PRODUKCJA ===
+        // === LEWA KOLUMNA: PRODUKCJA + EKONOMIA ===
         var pb = building as ProductionBuilding;
         if (pb != null && pb.Recipe != null)
         {
-            AddSectionLabel("PRODUKCJA");
-            AddInfoRow("Produkt", pb.Recipe.outputProductId);
-            AddInfoRow("Tempo", $"{pb.Recipe.outputAmount} j / {pb.Recipe.productionTimeTicks} tick");
-            
-            var storageRow = new VisualElement();
-            storageRow.style.flexDirection = FlexDirection.Row;
-            storageRow.style.justifyContent = Justify.SpaceBetween;
-            storageRow.style.marginBottom = 4;
-            var storageLbl = new Label("Magazyn");
-            storageLbl.AddToClassList("text-label");
-            _panelStorageLabel = new Label($"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0}");
-            _panelStorageLabel.AddToClassList("text-body");
-            _panelStorageLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            storageRow.Add(storageLbl);
-            storageRow.Add(_panelStorageLabel);
-            _activeColumn.Add(storageRow);
+            AddSectionLabel(leftColumn, "PRODUKCJA");
+            AddInfoRow(leftColumn, "Produkt", pb.Recipe.outputProductId);
+            AddInfoRow(leftColumn, "Tempo", $"{pb.Recipe.outputAmount} j / {pb.Recipe.productionTimeTicks} tick");
+            _panelStorageLabel = AddInfoRow(leftColumn, "Magazyn",
+                $"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0}");
 
             if (pb.Recipe.inputs.Count > 0)
             {
-                AddSeparator();
-                AddSectionLabel("SUROWCE");
+                AddSeparator(leftColumn);
+                AddSectionLabel(leftColumn, "SUROWCE");
                 foreach (var input in pb.Recipe.inputs)
-                    AddInfoRow(input.productId, $"{pb.GetAvailableFromPool(input.productId):F0} dostępne");
+                    AddInfoRow(leftColumn, input.productId, $"{pb.GetAvailableFromPool(input.productId):F0} dostępne");
             }
+
+            AddSeparator(leftColumn);
         }
 
-        AddSeparator();
+        AddSectionLabel(leftColumn, "EKONOMIA");
+        AddInfoRow(leftColumn, "Koszt budowy", UITheme.FormatMoney(building.ConstructionCost));
+        AddInfoRow(leftColumn, "Utrzymanie", $"{UITheme.FormatMoney(building.MonthlyMaintenance)}/mies.");
+        AddInfoRow(leftColumn, "Pensje", $"{UITheme.FormatMoney(building.MonthlyWages)}/mies.");
+        AddInfoRow(leftColumn, "Poziom", $"{building.Level}");
 
-        // === EKONOMIA ===
-        AddSectionLabel("EKONOMIA");
-        AddInfoRow("Koszt budowy", $"${building.ConstructionCost:F0}");
-        AddInfoRow("Utrzymanie", $"${building.MonthlyMaintenance:F0}/mies.");
-        AddInfoRow("Pensje", $"${building.MonthlyWages:F0}/mies.");
-        AddInfoRow("Poziom", $"{building.Level}");
+        // === PRAWA KOLUMNA: ANALITYKA + CENA + SPRZEDAŻ ===
+        AddSectionLabel(rightColumn, "ANALITYKA");
+        _panelMarginLabel = AddInfoRow(rightColumn, "Marża", "N/A");
+        _panelPaybackLabel = AddInfoRow(rightColumn, "Zwrot inwestycji", "N/A");
+        _panelMonthlyProfitLabel = AddInfoRow(rightColumn, "Zysk miesięczny", "N/A");
+        _panelMonthlyProfitLabel.style.color = UITheme.Positive;
+        _panelAvgThroughputLabel = AddInfoRow(rightColumn, "Śr. produkcja", "N/A");
 
-        // === PRAWA KOLUMNA ===
-        _activeColumn = rightColumn;
+        AddSeparator(rightColumn);
 
-        // === ANALYTICS ===
-        AddSectionLabel("ANALYTICS");
+        // === CENA SPRZEDAŻY ===
+        AddSectionLabel(rightColumn, "CENA SPRZEDAŻY");
 
-        _panelMarginLabel = new Label("Marża: N/A");
-        _panelMarginLabel.AddToClassList("text-body");
-        _panelMarginLabel.style.marginBottom = 4;
-        _activeColumn.Add(_panelMarginLabel);
-
-        _panelPaybackLabel = new Label("Payback: N/A");
-        _panelPaybackLabel.AddToClassList("text-body");
-        _panelPaybackLabel.style.marginBottom = 4;
-        _activeColumn.Add(_panelPaybackLabel);
-
-        _panelMonthlyProfitLabel = new Label("Monthly Profit: N/A");
-        _panelMonthlyProfitLabel.AddToClassList("metric-card__value--success");
-        _panelMonthlyProfitLabel.style.marginBottom = 4;
-        _activeColumn.Add(_panelMonthlyProfitLabel);
-
-        _panelAvgThroughputLabel = new Label("Avg Output: N/A items/tick");
-        _panelAvgThroughputLabel.AddToClassList("text-body");
-        _panelAvgThroughputLabel.style.marginBottom = 12;
-        _activeColumn.Add(_panelAvgThroughputLabel);
-
-        // === PRICE SLIDER ===
-        var priceSliderLabel = new Label("Cena sprzedaży (slider)");
-        priceSliderLabel.AddToClassList("text-label");
-        priceSliderLabel.style.marginBottom = 4;
-        _activeColumn.Add(priceSliderLabel);
+        var sliderCaption = new Label("Procent ceny bazowej (25–125%)");
+        sliderCaption.style.color = UITheme.TextSecondary;
+        sliderCaption.style.fontSize = 11;
+        sliderCaption.style.marginBottom = 4;
+        rightColumn.Add(sliderCaption);
 
         _panelPriceSlider = new Slider(25f, 125f, SliderDirection.Horizontal);
         _panelPriceSlider.style.marginBottom = 8;
-        _activeColumn.Add(_panelPriceSlider);
+        StyleSlider(_panelPriceSlider);
+        rightColumn.Add(_panelPriceSlider);
 
-        _panelPriceValueLabel = new UnityEngine.UIElements.TextField();
-        _panelPriceValueLabel.value = "$0.00";
-        _panelPriceValueLabel.style.height = 30;
-        _panelPriceValueLabel.style.marginBottom = 12;
-        _panelPriceValueLabel.AddToClassList("text-field");
-        _panelPriceValueLabel.Q<UnityEngine.UIElements.TextElement>().style.color = new Color(0.22f, 0.24f, 0.26f);
-        _activeColumn.Add(_panelPriceValueLabel);
+        _panelPriceField = new TextField();
+        _panelPriceField.value = "$0.00";
+        _panelPriceField.style.height = 28;
+        _panelPriceField.style.marginBottom = 12;
+        StyleTextFieldInput(_panelPriceField);
+        rightColumn.Add(_panelPriceField);
 
         _panelPriceSlider.RegisterValueChangedCallback(evt =>
         {
@@ -746,11 +743,11 @@ public class UIManager : MonoBehaviour
                 float basePrice = productData?.basePrice ?? 1f;
                 float actualPrice = (evt.newValue / 100f) * basePrice;
                 prodBuilding.SetSellingPrice(actualPrice);
-                _panelPriceValueLabel.SetValueWithoutNotify($"${actualPrice:F2}");
+                _panelPriceField.SetValueWithoutNotify($"${actualPrice:F2}");
             }
         });
 
-        _panelPriceValueLabel.RegisterValueChangedCallback(evt =>
+        _panelPriceField.RegisterValueChangedCallback(evt =>
         {
             if (_currentSelectedBuilding is ProductionBuilding prodBuilding && prodBuilding.Recipe != null)
             {
@@ -770,52 +767,81 @@ public class UIManager : MonoBehaviour
         // === SPRZEDAŻ (tylko production buildings) ===
         if (pb != null)
         {
-            AddSeparator();
-            AddSectionLabel("SPRZEDAŻ");
+            AddSeparator(rightColumn);
+            AddSectionLabel(rightColumn, "SPRZEDAŻ");
 
             var autoSellToggle = new Toggle("Auto-sprzedaż");
             autoSellToggle.value = pb.AutoSell;
-            autoSellToggle.AddToClassList("text-body");
+            StyleToggle(autoSellToggle);
             autoSellToggle.style.marginBottom = 8;
             autoSellToggle.RegisterValueChangedCallback(evt =>
             {
                 pb.SetAutoSell(evt.newValue);
             });
-            _activeColumn.Add(autoSellToggle);
+            rightColumn.Add(autoSellToggle);
 
             var sellBtn = new Button(() =>
             {
-                float revenue = pb.SellAll();
-                if (revenue > 0f)
-                    Debug.Log($"[UI] Sprzedano za ${revenue:F2}");
+                pb.SellAll();
                 BuildBuildingInfoWindowContent(building);
+                RefreshBuildingInfoPanel(building);
             });
             sellBtn.text = "Sprzedaj teraz";
-            sellBtn.AddToClassList("btn-success");
-            sellBtn.style.height = 28;
-            sellBtn.style.borderTopWidth = 0;
-            sellBtn.style.borderBottomWidth = 0;
-            sellBtn.style.borderLeftWidth = 0;
-            sellBtn.style.borderRightWidth = 0;
-            _activeColumn.Add(sellBtn);
+            sellBtn.style.backgroundColor = UITheme.PositiveSoft;
+            sellBtn.style.color = UITheme.Positive;
+            sellBtn.style.SetBorder(new Color(0.204f, 0.827f, 0.600f, 0.3f));
+            sellBtn.style.SetRadius(6);
+            sellBtn.style.height = 30;
+            AddHoverEffect(sellBtn, UITheme.PositiveSoft, new Color(0.204f, 0.827f, 0.600f, 0.22f));
+            rightColumn.Add(sellBtn);
         }
 
-        // === CLOSE BUTTON ===
-        var closeBtn = new Button(() => {
-            _currentSelectedBuilding = null;
-            _buildingInfoWindow.style.display = DisplayStyle.None;
-        });
-        closeBtn.text = "✕ Zamknij";
-        closeBtn.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
-        closeBtn.style.color = new Color(0.7f, 0.75f, 0.85f);
-        closeBtn.style.borderTopWidth = 0;
-        closeBtn.style.borderBottomWidth = 0;
-        closeBtn.style.borderLeftWidth = 0;
-        closeBtn.style.borderRightWidth = 0;
-        closeBtn.style.height = 28;
-        closeBtn.style.marginTop = 8;
-        closeBtn.AddToClassList("text-label");
-        _infoBody.Add(closeBtn);
+        // Wypełnij wartości analityki od razu, bez czekania na kolejny tick
+        RefreshBuildingInfoPanel(building);
+    }
+
+    private static void StyleTextFieldInput(TextField field)
+    {
+        field.style.color = UITheme.TextPrimary;
+        var input = field.Q<VisualElement>("unity-text-input");
+        if (input == null) return;
+        input.style.backgroundColor = UITheme.InsetBg;
+        input.style.color = UITheme.TextPrimary;
+        input.style.SetBorder(UITheme.Border);
+        input.style.SetRadius(6);
+    }
+
+    /// <summary>Minimalne przemalowanie domyślnego suwaka Unity pod motyw dashboardu.</summary>
+    private static void StyleSlider(Slider slider)
+    {
+        var tracker = slider.Q<VisualElement>("unity-tracker");
+        if (tracker != null)
+        {
+            tracker.style.backgroundColor = UITheme.CardBgActive;
+            tracker.style.SetBorder(Color.clear, 0);
+            tracker.style.SetRadius(2);
+        }
+        var dragger = slider.Q<VisualElement>("unity-dragger");
+        if (dragger != null)
+        {
+            dragger.style.backgroundColor = UITheme.Accent;
+            dragger.style.SetBorder(Color.clear, 0);
+            dragger.style.SetRadius(6);
+        }
+    }
+
+    /// <summary>Minimalne przemalowanie domyślnego checkboxa Unity pod motyw dashboardu.</summary>
+    private static void StyleToggle(Toggle toggle)
+    {
+        toggle.style.color = UITheme.TextPrimary;
+        var checkmark = toggle.Q<VisualElement>("unity-checkmark");
+        if (checkmark != null)
+        {
+            checkmark.style.backgroundColor = UITheme.InsetBg;
+            checkmark.style.SetBorder(UITheme.Border);
+            checkmark.style.SetRadius(3);
+            checkmark.style.unityBackgroundImageTintColor = UITheme.Accent;
+        }
     }
 
     private void RefreshBuildingInfoPanel(Building building)
@@ -826,7 +852,8 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        _buildingInfoWindow.style.display = DisplayStyle.Flex;
+        if (!_isDashboardOpen)
+            _buildingInfoWindow.style.display = DisplayStyle.Flex;
 
         var pb = building as ProductionBuilding;
 
@@ -842,11 +869,11 @@ public class UIManager : MonoBehaviour
 
         if (pb != null && pb.Recipe != null)
         {
-            // Avg Throughput
+            // Średnia produkcja
             float avgThroughput = pb.GetAverageThroughput(12);
-            _panelAvgThroughputLabel.text = $"Avg Output: {avgThroughput:F2} items/tick";
+            _panelAvgThroughputLabel.text = $"{avgThroughput:F2} j/tick";
 
-            // Cost per unit
+            // Koszt jednostkowy
             float inputCostSum = 0f;
             var productDb = EconomyManager.Instance?.ProductDatabase;
             if (productDb != null && pb.Recipe.inputs.Count > 0)
@@ -865,44 +892,35 @@ public class UIManager : MonoBehaviour
             float sellingPrice = pb.SellingPrice;
             float marginPercent = sellingPrice > 0 ? ((sellingPrice - costPerUnit) / sellingPrice) * 100f : 0f;
             marginPercent = Mathf.Max(marginPercent, -999f);
-            _panelMarginLabel.text = $"Marża: {marginPercent:F1}%";
+            _panelMarginLabel.text = $"{marginPercent:F1}%";
+            _panelMarginLabel.style.color = marginPercent >= 0 ? UITheme.TextPrimary : UITheme.Negative;
 
-            // Payback time (w dniach)
+            // Czas zwrotu inwestycji (w dniach)
             float dailyProfit = (avgThroughput * 24f * sellingPrice) - (monthlyCost / 30f);
             float paybackDays = dailyProfit > 0.01f ? building.ConstructionCost / dailyProfit : float.MaxValue;
-            string paybackStr = paybackDays >= 999 ? "∞ dni" : $"{paybackDays:F1} dni";
-            _panelPaybackLabel.text = $"Payback: {paybackStr}";
+            _panelPaybackLabel.text = paybackDays >= 999 ? "∞ dni" : $"{paybackDays:F1} dni";
 
-            // Monthly Profit
+            // Zysk miesięczny
             float monthlyProduction = avgThroughput * 24f * 30f;
             float monthlyRevenue = monthlyProduction * sellingPrice;
             float monthlyProfit = monthlyRevenue - monthlyCost;
-            if (monthlyProfit >= 0)
-            {
-                _panelMonthlyProfitLabel.RemoveFromClassList("metric-card__value--danger");
-                _panelMonthlyProfitLabel.AddToClassList("metric-card__value--success");
-            }
-            else
-            {
-                _panelMonthlyProfitLabel.RemoveFromClassList("metric-card__value--success");
-                _panelMonthlyProfitLabel.AddToClassList("metric-card__value--danger");
-            }
-            _panelMonthlyProfitLabel.text = $"Monthly Profit: ${monthlyProfit:F0}";
+            _panelMonthlyProfitLabel.style.color = monthlyProfit >= 0 ? UITheme.Positive : UITheme.Negative;
+            _panelMonthlyProfitLabel.text = UITheme.FormatMoney(monthlyProfit);
 
-            // Price slider (25-125% of base price)
+            // Suwak ceny (25–125% ceny bazowej)
             var outputProductData = productDb?.GetById(pb.Recipe.outputProductId);
             float basePrice = outputProductData?.basePrice ?? 1f;
             float pricePercent = basePrice > 0 ? (sellingPrice / basePrice) * 100f : 100f;
             pricePercent = Mathf.Clamp(pricePercent, 25f, 125f);
             _panelPriceSlider.SetValueWithoutNotify(pricePercent);
-            _panelPriceValueLabel.SetValueWithoutNotify($"${sellingPrice:F2}");
+            _panelPriceField.SetValueWithoutNotify($"${sellingPrice:F2}");
         }
         else
         {
-            _panelMarginLabel.text = "Marża: N/A";
-            _panelPaybackLabel.text = "Payback: N/A";
-            _panelMonthlyProfitLabel.text = "Monthly Profit: N/A";
-            _panelAvgThroughputLabel.text = "Avg Output: N/A items/tick";
+            _panelMarginLabel.text = "N/A";
+            _panelPaybackLabel.text = "N/A";
+            _panelMonthlyProfitLabel.text = "N/A";
+            _panelAvgThroughputLabel.text = "N/A";
         }
     }
 
@@ -913,29 +931,30 @@ public class UIManager : MonoBehaviour
         return "Budynek";
     }
 
-    private void AddSeparator()
+    // --- Pomocnicze klocki UI ---
+
+    private void AddSeparator(VisualElement parent)
     {
         var sep = new VisualElement();
         sep.style.height = 1;
-        sep.style.backgroundColor = new Color(0.2f, 0.27f, 0.4f);
-        sep.style.marginTop = 8;
-        sep.style.marginBottom = 8;
-        sep.AddToClassList("divider");
-        _activeColumn.Add(sep);
+        sep.style.backgroundColor = UITheme.Border;
+        sep.style.SetMargin(0, 8);
+        parent.Add(sep);
     }
 
-    private void AddSectionLabel(string text)
+    private void AddSectionLabel(VisualElement parent, string text)
     {
         var label = new Label(text);
+        label.style.color = UITheme.TextHeader;
         label.style.fontSize = 10;
+        label.style.letterSpacing = 1.5f;
         label.style.marginBottom = 6;
         label.style.unityFontStyleAndWeight = FontStyle.Bold;
-        label.style.color = new Color(0.45f, 0.58f, 0.75f);
-        label.AddToClassList("text-label");
-        _activeColumn.Add(label);
+        parent.Add(label);
     }
 
-    private void AddInfoRow(string labelText, string valueText)
+    /// <summary>Dodaje wiersz "etykieta ... wartość" i zwraca Label wartości (do późniejszej aktualizacji).</summary>
+    private Label AddInfoRow(VisualElement parent, string labelText, string valueText)
     {
         var row = new VisualElement();
         row.style.flexDirection = FlexDirection.Row;
@@ -943,32 +962,29 @@ public class UIManager : MonoBehaviour
         row.style.marginBottom = 4;
 
         var lbl = new Label(labelText);
-        lbl.AddToClassList("text-label");
+        lbl.style.color = UITheme.TextSecondary;
+        lbl.style.fontSize = 12;
 
         var val = new Label(valueText);
-        val.AddToClassList("text-body");
+        val.style.color = UITheme.TextPrimary;
+        val.style.fontSize = 12;
         val.style.unityFontStyleAndWeight = FontStyle.Bold;
 
         row.Add(lbl);
         row.Add(val);
-        _activeColumn.Add(row);
+        parent.Add(row);
+        return val;
     }
 
     private void OnTimeUpdated(TimeUpdatedEvent e)
     {
-        if (_tickLabel == null) return;
-        _tickLabel.text = e.DateString;
+        if (_dateLabel == null) return;
+        _dateLabel.text = e.DateString;
     }
 
     private void OnBuildingDeselected(BuildingDeselectedEvent e)
     {
-        _currentSelectedBuilding = null;
-        _buildingInfoWindow.style.display = DisplayStyle.None;
-    }
-
-    private void OnSpeedButtonClicked(float speed)
-    {
-        GameManager.Instance?.SetGameSpeed(speed);
+        CloseBuildingInfoWindow();
     }
 
     private void OnProductionCompleted(ProductionCompletedEvent e)
@@ -982,10 +998,11 @@ public class UIManager : MonoBehaviour
     /// <summary>
     /// Wyświetla panel informacyjny dla przekazanego budynku.
     /// </summary>
-
     public void ShowBuildingInfo(Building building)
     {
+        _currentSelectedBuilding = building;
         _buildingInfoWindow.style.display = DisplayStyle.Flex;
+        BuildBuildingInfoWindowContent(building);
     }
 
     /// <summary>
@@ -993,28 +1010,24 @@ public class UIManager : MonoBehaviour
     /// </summary>
     public void HideBuildingInfo()
     {
-        _buildingInfoWindow.style.display = DisplayStyle.None;
+        CloseBuildingInfoWindow();
     }
 
     /// <summary>
-    /// Sprawdza, czy wskaźnik myszy znajduje się nad jakimkolwiek istotnym elementem UI.
-    /// Przydatne by np. blokować kliknięcia w obiekty w świecie gry pod interfejsem.
+    /// Sprawdza, czy wskaźnik myszy znajduje się nad jakimkolwiek elementem UI.
+    /// Używa panel.Pick() zamiast ręcznych prostokątów — działa dla wszystkich paneli
+    /// i poprawnie obsługuje konwersję współrzędnych ekranu (oś Y ekranu rośnie w górę,
+    /// a w UI Toolkit w dół).
     /// </summary>
     public bool IsPointerOverUI()
     {
-        Vector2 mousePos = Mouse.current.position.ReadValue();
-        if (_buildingInfoWindow.style.display == DisplayStyle.Flex)
-        {
-            var panelRect = _buildingInfoWindow.worldBound;
-            if (panelRect.Contains(mousePos))
-                return true;
-        }
-        var buildMenuRect = _buildMenuPanel.worldBound;
-        if (buildMenuRect.Contains(mousePos))
-            return true;
-        var hudRect = _hudPanel.worldBound;
-        if (hudRect.Contains(mousePos))
-            return true;
-        return false;
+        if (_root == null || _root.panel == null || Mouse.current == null)
+            return false;
+
+        Vector2 screenPos = Mouse.current.position.ReadValue();
+        Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(
+            _root.panel, new Vector2(screenPos.x, Screen.height - screenPos.y));
+
+        return _root.panel.Pick(panelPos) != null;
     }
 }
