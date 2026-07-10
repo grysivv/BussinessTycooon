@@ -18,13 +18,13 @@ public class BarChart : VisualElement
     {
         style.height = 150;
         style.width = Length.Percent(100);
-        style.backgroundColor = new Color(0.10f, 0.13f, 0.2f, 0.9f);
         style.flexDirection = FlexDirection.Row;
         style.alignItems = Align.FlexEnd;
         style.paddingLeft = 8;
         style.paddingRight = 8;
         style.paddingTop = 8;
         style.paddingBottom = 8;
+        AddToClassList("chart-container");
     }
 
     public void SetData(List<BarData> data)
@@ -59,19 +59,19 @@ public class BarChart : VisualElement
             pairContainer.style.marginLeft = 2;
             pairContainer.style.marginRight = 2;
 
-            // Bar 1
+            // Bar 1 (success - z Theme.uss: --color-success-light)
             var bar1 = new VisualElement();
             bar1.style.flexGrow = 1;
-            bar1.style.backgroundColor = new Color(0.4f, 0.95f, 0.5f);
             bar1.style.marginRight = 1;
+            bar1.AddToClassList("chart-bar--success");
             float h1 = (_maxValue > 0) ? (barData.Value1 / _maxValue) * 100f : 0f;
             bar1.style.height = new Length(Mathf.Max(2f, h1), LengthUnit.Percent);
             pairContainer.Add(bar1);
 
-            // Bar 2
+            // Bar 2 (danger - z Theme.uss: --color-danger)
             var bar2 = new VisualElement();
             bar2.style.flexGrow = 1;
-            bar2.style.backgroundColor = new Color(0.95f, 0.3f, 0.3f);
+            bar2.AddToClassList("chart-bar--danger");
             float h2 = (_maxValue > 0) ? (barData.Value2 / _maxValue) * 100f : 0f;
             bar2.style.height = new Length(Mathf.Max(2f, h2), LengthUnit.Percent);
             pairContainer.Add(bar2);

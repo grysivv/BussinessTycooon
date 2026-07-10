@@ -133,14 +133,15 @@ public class UIManager : MonoBehaviour
         leftGroup.style.alignItems = Align.Center;
 
         _moneyLabel = new Label("$50 000");
-        _moneyLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _moneyLabel.AddToClassList("text-body");
         _moneyLabel.style.fontSize = 18;
         _moneyLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         _moneyLabel.style.marginRight = 24;
+        _moneyLabel.style.color = new Color(0.9f, 0.95f, 1f);
 
         _incomeLabel = new Label("+$0/tick");
+        _incomeLabel.AddToClassList("text-label");
         _incomeLabel.style.color = new Color(0.3f, 0.85f, 0.5f);
-        _incomeLabel.style.fontSize = 13;
 
         leftGroup.Add(_moneyLabel);
         leftGroup.Add(_incomeLabel);
@@ -151,8 +152,7 @@ public class UIManager : MonoBehaviour
         rightGroup.style.alignItems = Align.Center;
 
         _tickLabel = new Label("Tick: 0");
-        _tickLabel.style.color = new Color(0.6f, 0.7f, 0.8f);
-        _tickLabel.style.fontSize = 13;
+        _tickLabel.AddToClassList("text-muted");
         _tickLabel.style.marginRight = 16;
 
         // Przyciski prędkości i dashboard
@@ -186,6 +186,7 @@ public class UIManager : MonoBehaviour
         economyBtn.style.borderTopRightRadius = 4;
         economyBtn.style.borderBottomLeftRadius = 4;
         economyBtn.style.borderBottomRightRadius = 4;
+        // TODO: zamienić na .btn-hud-dark klasa w Theme.uss
         speedGroup.Add(economyBtn);
 
         rightGroup.Add(_tickLabel);
@@ -218,6 +219,8 @@ public class UIManager : MonoBehaviour
         btn.style.borderTopRightRadius = 4;
         btn.style.borderBottomLeftRadius = 4;
         btn.style.borderBottomRightRadius = 4;
+        btn.AddToClassList("text-label");
+        // TODO: dodać .btn-hud-dark klasa do Theme.uss dla przycisków kontroli (speed, economy)
         return btn;
     }
 
@@ -269,6 +272,7 @@ public class UIManager : MonoBehaviour
         titleLabel.style.color = new Color(0.45f, 0.58f, 0.75f);
         titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         titleLabel.style.flexGrow = 1;
+        titleLabel.AddToClassList("text-body");
         topBar.Add(titleLabel);
 
         var closeBtn = new Button(() => ToggleDashboard());
@@ -277,6 +281,7 @@ public class UIManager : MonoBehaviour
         closeBtn.style.height = 28;
         closeBtn.style.backgroundColor = new Color(0.15f, 0.2f, 0.32f);
         closeBtn.style.color = new Color(0.7f, 0.75f, 0.85f);
+        closeBtn.AddToClassList("text-label");
         topBar.Add(closeBtn);
 
         _dashboardView.Add(topBar);
@@ -313,12 +318,14 @@ public class UIManager : MonoBehaviour
         leftCol.style.paddingRight = 12;
         leftCol.style.paddingTop = 12;
         leftCol.style.paddingBottom = 12;
+        leftCol.AddToClassList("panel-card");
 
         var label = new Label("PRODUKTY");
         label.style.fontSize = 12;
         label.style.color = new Color(0.45f, 0.58f, 0.75f);
         label.style.unityFontStyleAndWeight = FontStyle.Bold;
         label.style.marginBottom = 8;
+        label.AddToClassList("text-label");
         leftCol.Add(label);
 
         var productDb2 = EconomyManager.Instance?.ProductDatabase;
@@ -329,7 +336,7 @@ public class UIManager : MonoBehaviour
                 var toggle = new Toggle(product.name);
                 toggle.value = true;
                 toggle.style.marginBottom = 4;
-                toggle.style.color = new Color(0.9f, 0.95f, 1f);
+                toggle.AddToClassList("text-body");
                 leftCol.Add(toggle);
             }
         }
@@ -345,6 +352,7 @@ public class UIManager : MonoBehaviour
         statsLabel.style.color = new Color(0.45f, 0.58f, 0.75f);
         statsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         statsLabel.style.marginBottom = 12;
+        statsLabel.AddToClassList("text-label");
         rightCol.Add(statsLabel);
 
         // Simple table/list of product stats
@@ -367,6 +375,8 @@ public class UIManager : MonoBehaviour
         statsScroll.style.paddingRight = 12;
         statsScroll.style.paddingTop = 12;
         statsScroll.style.paddingBottom = 12;
+        statsScroll.AddToClassList("panel-card");
+        statsScroll.AddToClassList("chart-container");
 
         var productDb = EconomyManager.Instance?.ProductDatabase;
         if (productDb != null)
@@ -382,8 +392,7 @@ public class UIManager : MonoBehaviour
                 container.style.borderBottomColor = new Color(0.2f, 0.27f, 0.4f);
 
                 var nameLabel = new Label(product.name);
-                nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
-                nameLabel.style.fontSize = 11;
+                nameLabel.AddToClassList("text-body");
                 nameLabel.style.marginBottom = 6;
 
                 var chart = new LineChart();
@@ -491,16 +500,17 @@ public class UIManager : MonoBehaviour
         container.style.width = 90;
 
         var nameLabel = new Label(data.displayName);
-        nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        nameLabel.AddToClassList("text-label");
         nameLabel.style.fontSize = 12;
         nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
         nameLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
         nameLabel.style.marginTop = 6;
+        nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
 
         var costLabel = new Label($"${data.constructionCost:F0}");
-        costLabel.style.color = new Color(0.3f, 0.85f, 0.5f);
-        costLabel.style.fontSize = 11;
+        costLabel.AddToClassList("text-muted");
         costLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+        costLabel.style.color = new Color(0.3f, 0.85f, 0.5f);
 
         container.Add(nameLabel);
         container.Add(costLabel);
@@ -629,17 +639,13 @@ public class UIManager : MonoBehaviour
         header.style.marginBottom = 12;
 
         var typeLabel = new Label(GetBuildingType(building));
-        typeLabel.style.color = new Color(0.5f, 0.65f, 0.8f);
-        typeLabel.style.fontSize = 11;
+        typeLabel.AddToClassList("text-label");
 
         var nameLabel = new Label(building.DisplayName);
-        nameLabel.style.color = new Color(0.9f, 0.95f, 1f);
-        nameLabel.style.fontSize = 16;
-        nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        nameLabel.AddToClassList("text-panel-title");
 
         var posLabel = new Label($"({building.GridX}, {building.GridY})");
-        posLabel.style.color = new Color(0.5f, 0.6f, 0.7f);
-        posLabel.style.fontSize = 11;
+        posLabel.AddToClassList("text-muted");
 
         header.Add(typeLabel);
         header.Add(nameLabel);
@@ -661,11 +667,9 @@ public class UIManager : MonoBehaviour
             storageRow.style.justifyContent = Justify.SpaceBetween;
             storageRow.style.marginBottom = 4;
             var storageLbl = new Label("Magazyn");
-            storageLbl.style.color = new Color(0.55f, 0.65f, 0.75f);
-            storageLbl.style.fontSize = 12;
+            storageLbl.AddToClassList("text-label");
             _panelStorageLabel = new Label($"{pb.GetStorageAmount(pb.Recipe.outputProductId):F0} / {pb.StorageCapacity:F0}");
-            _panelStorageLabel.style.color = new Color(0.9f, 0.95f, 1f);
-            _panelStorageLabel.style.fontSize = 12;
+            _panelStorageLabel.AddToClassList("text-body");
             _panelStorageLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             storageRow.Add(storageLbl);
             storageRow.Add(_panelStorageLabel);
@@ -696,34 +700,28 @@ public class UIManager : MonoBehaviour
         AddSectionLabel("ANALYTICS");
 
         _panelMarginLabel = new Label("Marża: N/A");
-        _panelMarginLabel.style.color = new Color(0.9f, 0.95f, 1f);
-        _panelMarginLabel.style.fontSize = 12;
+        _panelMarginLabel.AddToClassList("text-body");
         _panelMarginLabel.style.marginBottom = 4;
         _activeColumn.Add(_panelMarginLabel);
 
         _panelPaybackLabel = new Label("Payback: N/A");
-        _panelPaybackLabel.style.color = new Color(0.9f, 0.95f, 1f);
-        _panelPaybackLabel.style.fontSize = 12;
+        _panelPaybackLabel.AddToClassList("text-body");
         _panelPaybackLabel.style.marginBottom = 4;
         _activeColumn.Add(_panelPaybackLabel);
 
         _panelMonthlyProfitLabel = new Label("Monthly Profit: N/A");
-        _panelMonthlyProfitLabel.style.color = new Color(0.4f, 0.95f, 0.5f);
-        _panelMonthlyProfitLabel.style.fontSize = 12;
-        _panelMonthlyProfitLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        _panelMonthlyProfitLabel.AddToClassList("metric-card__value--success");
         _panelMonthlyProfitLabel.style.marginBottom = 4;
         _activeColumn.Add(_panelMonthlyProfitLabel);
 
         _panelAvgThroughputLabel = new Label("Avg Output: N/A items/tick");
-        _panelAvgThroughputLabel.style.color = new Color(0.9f, 0.95f, 1f);
-        _panelAvgThroughputLabel.style.fontSize = 12;
+        _panelAvgThroughputLabel.AddToClassList("text-body");
         _panelAvgThroughputLabel.style.marginBottom = 12;
         _activeColumn.Add(_panelAvgThroughputLabel);
 
         // === PRICE SLIDER ===
         var priceSliderLabel = new Label("Cena sprzedaży (slider)");
-        priceSliderLabel.style.color = new Color(0.55f, 0.65f, 0.75f);
-        priceSliderLabel.style.fontSize = 11;
+        priceSliderLabel.AddToClassList("text-label");
         priceSliderLabel.style.marginBottom = 4;
         _activeColumn.Add(priceSliderLabel);
 
@@ -735,9 +733,8 @@ public class UIManager : MonoBehaviour
         _panelPriceValueLabel.value = "$0.00";
         _panelPriceValueLabel.style.height = 30;
         _panelPriceValueLabel.style.marginBottom = 12;
-        _panelPriceValueLabel.style.color = new Color(0.9f, 0.95f, 1f);
+        _panelPriceValueLabel.AddToClassList("text-field");
         _panelPriceValueLabel.Q<UnityEngine.UIElements.TextElement>().style.color = new Color(0.22f, 0.24f, 0.26f);
-        _panelPriceValueLabel.style.fontSize = 10;
         _activeColumn.Add(_panelPriceValueLabel);
 
         _panelPriceSlider.RegisterValueChangedCallback(evt =>
@@ -778,7 +775,7 @@ public class UIManager : MonoBehaviour
 
             var autoSellToggle = new Toggle("Auto-sprzedaż");
             autoSellToggle.value = pb.AutoSell;
-            autoSellToggle.style.color = new Color(0.9f, 0.95f, 1f);
+            autoSellToggle.AddToClassList("text-body");
             autoSellToggle.style.marginBottom = 8;
             autoSellToggle.RegisterValueChangedCallback(evt =>
             {
@@ -794,8 +791,7 @@ public class UIManager : MonoBehaviour
                 BuildBuildingInfoWindowContent(building);
             });
             sellBtn.text = "Sprzedaj teraz";
-            sellBtn.style.backgroundColor = new Color(0.11f, 0.35f, 0.15f);
-            sellBtn.style.color = new Color(0.4f, 0.95f, 0.5f);
+            sellBtn.AddToClassList("btn-success");
             sellBtn.style.height = 28;
             sellBtn.style.borderTopWidth = 0;
             sellBtn.style.borderBottomWidth = 0;
@@ -818,6 +814,7 @@ public class UIManager : MonoBehaviour
         closeBtn.style.borderRightWidth = 0;
         closeBtn.style.height = 28;
         closeBtn.style.marginTop = 8;
+        closeBtn.AddToClassList("text-label");
         _infoBody.Add(closeBtn);
     }
 
@@ -880,8 +877,16 @@ public class UIManager : MonoBehaviour
             float monthlyProduction = avgThroughput * 24f * 30f;
             float monthlyRevenue = monthlyProduction * sellingPrice;
             float monthlyProfit = monthlyRevenue - monthlyCost;
-            Color profitColor = monthlyProfit >= 0 ? new Color(0.4f, 0.95f, 0.5f) : new Color(0.95f, 0.3f, 0.3f);
-            _panelMonthlyProfitLabel.style.color = profitColor;
+            if (monthlyProfit >= 0)
+            {
+                _panelMonthlyProfitLabel.RemoveFromClassList("metric-card__value--danger");
+                _panelMonthlyProfitLabel.AddToClassList("metric-card__value--success");
+            }
+            else
+            {
+                _panelMonthlyProfitLabel.RemoveFromClassList("metric-card__value--success");
+                _panelMonthlyProfitLabel.AddToClassList("metric-card__value--danger");
+            }
             _panelMonthlyProfitLabel.text = $"Monthly Profit: ${monthlyProfit:F0}";
 
             // Price slider (25-125% of base price)
@@ -915,16 +920,18 @@ public class UIManager : MonoBehaviour
         sep.style.backgroundColor = new Color(0.2f, 0.27f, 0.4f);
         sep.style.marginTop = 8;
         sep.style.marginBottom = 8;
+        sep.AddToClassList("divider");
         _activeColumn.Add(sep);
     }
 
     private void AddSectionLabel(string text)
     {
         var label = new Label(text);
-        label.style.color = new Color(0.45f, 0.58f, 0.75f);
         label.style.fontSize = 10;
         label.style.marginBottom = 6;
         label.style.unityFontStyleAndWeight = FontStyle.Bold;
+        label.style.color = new Color(0.45f, 0.58f, 0.75f);
+        label.AddToClassList("text-label");
         _activeColumn.Add(label);
     }
 
@@ -936,12 +943,10 @@ public class UIManager : MonoBehaviour
         row.style.marginBottom = 4;
 
         var lbl = new Label(labelText);
-        lbl.style.color = new Color(0.55f, 0.65f, 0.75f);
-        lbl.style.fontSize = 12;
+        lbl.AddToClassList("text-label");
 
         var val = new Label(valueText);
-        val.style.color = new Color(0.9f, 0.95f, 1f);
-        val.style.fontSize = 12;
+        val.AddToClassList("text-body");
         val.style.unityFontStyleAndWeight = FontStyle.Bold;
 
         row.Add(lbl);

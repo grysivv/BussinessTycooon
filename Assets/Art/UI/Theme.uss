@@ -12,6 +12,12 @@
     --color-surface-alt: #F4F5F7;  /* tło "wpuszczonych" boxów wewnątrz karty (np. KPI w Building Info Panel) */
     --color-hover: #F8F9FA;        /* podświetlenie wiersza tabeli / hover na elemencie */
 
+    /* --- Kolory ciemne (dla UI Toolkit w grze) --- */
+    --color-page-bg-dark: #0D0F17;
+    --color-surface-dark: #192230;
+    --color-btn-dark: #1E2844;
+    --color-border-dark: #404C70;
+
     /* --- Bordery --- */
     --color-border: #E2E4E9;
     --color-border-strong: #D7DAE0;
@@ -26,6 +32,7 @@
     --color-accent: #2A78D6;
     --color-accent-hover: #2568BC;
     --color-success: #157F3D;
+    --color-success-light: #4FBB6E;
     --color-danger: #C0392B;
 
     /* --- Overlay modala --- */
@@ -83,10 +90,14 @@
 }
 
 .metric-card__value--success {
-    color: var(--color-success);
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--color-success-light);
 }
 
 .metric-card__value--danger {
+    font-size: 18px;
+    -unity-font-style: bold;
     color: var(--color-danger);
 }
 
@@ -320,4 +331,53 @@
     border-bottom-color: var(--color-accent);
     color: var(--color-text-primary);
     -unity-font-style: bold;
+}
+
+
+/* ============================================================
+   WYKRESY (LineChart, BarChart)
+   ============================================================ */
+
+.chart-container {
+    background-color: var(--color-surface-alt);
+    border-radius: var(--radius-control);
+}
+
+.chart-bar {
+    background-color: var(--color-accent);
+}
+
+.chart-bar--success {
+    background-color: var(--color-success-light);
+}
+
+.chart-bar--danger {
+    background-color: var(--color-danger);
+}
+
+
+/* ============================================================
+   PRZYCISKI SPECJALNE
+   ============================================================ */
+
+.btn-success {
+    background-color: #1B5D1F;
+    color: var(--color-success-light);
+    border-width: 0;
+}
+
+.btn-success:hover {
+    background-color: #217423;
+}
+
+/* Przyciski HUD — kontrola prędkości, economy button, itd. */
+.btn-hud-dark {
+    background-color: var(--color-btn-dark);
+    color: #CDD5E0;
+    border-width: 1px;
+    border-color: var(--color-border-dark);
+    border-radius: var(--radius-control);
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+    font-size: 12px;
 }

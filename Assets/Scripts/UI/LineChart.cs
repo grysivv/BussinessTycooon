@@ -12,13 +12,13 @@ public class LineChart : VisualElement
     {
         style.height = 150;
         style.width = Length.Percent(100);
-        style.backgroundColor = new Color(0.10f, 0.13f, 0.2f, 0.9f);
         style.flexDirection = FlexDirection.Row;
         style.alignItems = Align.FlexEnd;
         style.paddingLeft = 8;
         style.paddingRight = 8;
         style.paddingTop = 8;
         style.paddingBottom = 8;
+        AddToClassList("chart-container");
     }
 
     public void SetData(List<float> data)
@@ -65,9 +65,9 @@ public class LineChart : VisualElement
         {
             var bar = new VisualElement();
             bar.style.flexGrow = 1;
-            bar.style.backgroundColor = new Color(0.45f, 0.58f, 0.75f);
             bar.style.marginLeft = 1;
             bar.style.marginRight = 1;
+            bar.AddToClassList("chart-bar");
 
             float normalizedHeight = (value - _minValue) / range;
             bar.style.height = new Length(Mathf.Max(2f, normalizedHeight * 100f), LengthUnit.Percent);
