@@ -1,0 +1,323 @@
+/* ============================================================
+   Theme.uss — bazowy motyw UI (jasny, korporacyjny/minimalistyczny)
+   Podepnij ten plik jako pierwszy USS w każdym UIDocument
+   (albo w Panel Settings jako theme style sheet), żeby zmienne
+   z :root były widoczne we wszystkich innych plikach USS.
+   ============================================================ */
+
+:root {
+    /* --- Kolory powierzchni --- */
+    --color-page-bg: #F4F5F7;      /* tło sceny/mapy pod UI, jeśli dotyczy */
+    --color-surface: #FFFFFF;      /* tło karty/panelu */
+    --color-surface-alt: #F4F5F7;  /* tło "wpuszczonych" boxów wewnątrz karty (np. KPI w Building Info Panel) */
+    --color-hover: #F8F9FA;        /* podświetlenie wiersza tabeli / hover na elemencie */
+
+    /* --- Bordery --- */
+    --color-border: #E2E4E9;
+    --color-border-strong: #D7DAE0;
+
+    /* --- Tekst --- */
+    --color-text-primary: #111318;
+    --color-text-secondary: #6B7280;
+    --color-text-muted: #9CA3AF;
+    --color-text-on-accent: #FFFFFF;
+
+    /* --- Rola: akcent / sukces / błąd --- */
+    --color-accent: #2A78D6;
+    --color-accent-hover: #2568BC;
+    --color-success: #157F3D;
+    --color-danger: #C0392B;
+
+    /* --- Overlay modala --- */
+    --color-overlay: rgba(17, 19, 24, 0.45);
+
+    /* --- Zaokrąglenia --- */
+    --radius-card: 12px;
+    --radius-control: 8px;
+
+    /* --- Odstępy (siatka 8px) --- */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+
+    /* --- Typografia --- */
+    /* Podmień na faktyczny Font asset z projektu, np.:
+       --font-regular: url("Assets/Art/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf");
+       --font-medium:  url("Assets/Art/Fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf");
+       USS custom properties nie wspierają bezpośrednio -unity-font-definition
+       przez var(), więc font trzeba przypisać wprost w klasach poniżej —
+       zmień "resource('Fonts/Inter-Regular')" na swoją ścieżkę. */
+}
+
+
+/* ============================================================
+   KARTY / PANELE
+   ============================================================ */
+
+.panel-card {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-card);
+    border-width: 1px;
+    border-color: var(--color-border);
+    padding: var(--space-lg);
+}
+
+.metric-card {
+    background-color: var(--color-surface-alt);
+    border-radius: var(--radius-control);
+    padding: var(--space-md);
+}
+
+.metric-card__label {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+}
+
+.metric-card__value {
+    font-size: 18px;
+    -unity-font-style: bold; /* podmień na font-weight 500 przez osobny Medium font asset, patrz sekcja typografii niżej */
+    color: var(--color-text-primary);
+}
+
+.metric-card__value--success {
+    color: var(--color-success);
+}
+
+.metric-card__value--danger {
+    color: var(--color-danger);
+}
+
+/* Overlay pod modalem (Building Info Panel) */
+.modal-overlay {
+    background-color: var(--color-overlay);
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Separator wewnątrz karty, np. między KPI a sliderem ceny */
+.divider {
+    border-top-width: 1px;
+    border-top-color: var(--color-border);
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+}
+
+
+/* ============================================================
+   TYPOGRAFIA
+   ============================================================ */
+
+.text-kpi {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--color-text-primary);
+}
+
+.text-panel-title {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--color-text-primary);
+}
+
+.text-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.text-muted {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.text-body {
+    font-size: 13px;
+    color: var(--color-text-primary);
+}
+
+
+/* ============================================================
+   PRZYCISKI
+   ============================================================ */
+
+.btn {
+    height: 36px;
+    border-radius: var(--radius-control);
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+    font-size: 13px;
+    -unity-font-style: bold;
+    border-width: 1px;
+    justify-content: center;
+    align-items: center;
+}
+
+.btn-primary {
+    background-color: var(--color-accent);
+    color: var(--color-text-on-accent);
+    border-width: 0;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-accent-hover);
+}
+
+.btn-primary:disabled {
+    background-color: var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.btn-secondary {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-strong);
+}
+
+.btn-secondary:hover {
+    background-color: var(--color-surface-alt);
+}
+
+.btn-secondary:disabled {
+    background-color: var(--color-page-bg);
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+}
+
+
+/* ============================================================
+   POLA TEKSTOWE / DROPDOWN
+   ============================================================ */
+
+.text-field {
+    height: 36px;
+    border-radius: var(--radius-control);
+    border-width: 1px;
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface);
+    padding-left: var(--space-sm);
+    padding-right: var(--space-sm);
+    font-size: 13px;
+    color: var(--color-text-primary);
+}
+
+.text-field:focus {
+    border-color: var(--color-accent);
+}
+
+.dropdown {
+    height: 36px;
+    border-radius: var(--radius-control);
+    border-width: 1px;
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface);
+    padding-left: var(--space-sm);
+    padding-right: var(--space-sm);
+    font-size: 13px;
+    color: var(--color-text-primary);
+}
+
+.dropdown:focus {
+    border-color: var(--color-accent);
+}
+
+/* Karta listy opcji dropdowna, jeśli budowana ręcznie (np. przez PopupWindow) */
+.dropdown-list {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-control);
+    border-width: 1px;
+    border-color: var(--color-border);
+}
+
+.dropdown-list__item:hover {
+    background-color: var(--color-hover);
+}
+
+
+/* ============================================================
+   SLIDER CENY
+   ============================================================ */
+
+.price-slider {
+    /* Slider builtin Unity (Slider) — kolorystykę suwaka/wypełnienia
+       trzeba nadpisać przez podselektory Unity, np.: */
+}
+
+.price-slider > .unity-base-slider__tracker {
+    background-color: var(--color-border);
+    border-radius: 2px;
+}
+
+.price-slider > .unity-base-slider__dragger {
+    background-color: var(--color-accent);
+    border-radius: 100px;
+    border-width: 0;
+}
+
+/* Znacznik ceny bazowej (cena_bazowa) na sliderze — element pozycjonowany
+   ręcznie w kodzie (left w % lub px liczony z zakresu min-max), styl: */
+.price-slider__baseline-marker {
+    width: 2px;
+    background-color: var(--color-text-muted);
+    position: absolute;
+    top: 0;
+    bottom: 0;
+}
+
+
+/* ============================================================
+   TABELA (Economy Dashboard)
+   ============================================================ */
+
+.table-header-label {
+    font-size: 12px;
+    -unity-font-style: bold;
+    color: var(--color-text-secondary);
+}
+
+.table-row {
+    border-bottom-width: 1px;
+    border-bottom-color: var(--color-border);
+}
+
+.table-row:hover {
+    background-color: var(--color-hover);
+}
+
+.table-cell {
+    font-size: 13px;
+    color: var(--color-text-primary);
+}
+
+.table-cell--number {
+    -unity-text-align: middle-right;
+}
+
+.table-cell--success {
+    color: var(--color-success);
+}
+
+.table-cell--danger {
+    color: var(--color-danger);
+}
+
+
+/* ============================================================
+   ZAKŁADKI (Economy Dashboard)
+   ============================================================ */
+
+.tab {
+    padding-bottom: var(--space-sm);
+    border-bottom-width: 2px;
+    border-bottom-color: transparent;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.tab--active {
+    border-bottom-color: var(--color-accent);
+    color: var(--color-text-primary);
+    -unity-font-style: bold;
+}

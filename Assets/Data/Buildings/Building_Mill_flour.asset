@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d6c3cc2be68ae7d41a83228ab40d23b7, type: 3}
-  m_Name: Building_Farm
+  m_Name: Building_Mill_flour
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
-  id: farm_wheat
-  displayName: Wheat Farm
-  icon: {fileID: 6437738476519406127, guid: f5aecdc157116684db73167130399a5b, type: 3}
-  prefab: {fileID: 1194812570980824487, guid: 796d940ba9885b7478a143144e5f1198, type: 3}
+  id: Mill_Flour
+  displayName: Flour Mill
+  icon: {fileID: 0}
+  prefab: {fileID: 1194812570980824487, guid: f328f1dfefd66494287086ffb2023d63, type: 3}
   footprint: {x: 1, y: 1}
-  constructionCost: 1200
-  demolitionCost: 300
-  monthlyMaintenance: 50
-  monthlyWages: 100
-  recipe: {fileID: 11400000, guid: ea9a50df6c08b4942bed3ab8106fc4c9, type: 2}
-  storageCapacity: 100
+  constructionCost: 59642.86
+  demolitionCost: 29821.43
+  monthlyMaintenance: 8100
+  monthlyWages: 82320
+  recipe: {fileID: 11400000, guid: 627dce57c5bb0dd47ad01c0685cee3b8, type: 2}
+  storageCapacity: 150
   category: 0

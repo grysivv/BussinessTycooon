@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Flour
   inputs:
   - productId: wheat
-    amount: 2
+    amount: 1
   outputProductId: flour
-  outputAmount: 1
-  productionTimeTicks: 3
+  outputAmount: 0.7
+  productionTimeTicks: 10

@@ -265,6 +265,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 440384380}
+  - component: {fileID: 440384381}
   m_Layer: 0
   m_Name: StatisticsManager
   m_TagString: Untagged
@@ -287,6 +288,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 603762084}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &440384381
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 440384379}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd34864732a9a55468e4ae540a722619, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StatisticsManager
 --- !u!1 &580649666
 GameObject:
   m_ObjectHideFlags: 0
@@ -348,7 +361,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 765230179}
-  - {fileID: 1251996202}
   - {fileID: 139946996}
   - {fileID: 1317029430}
   - {fileID: 440384380}
@@ -685,7 +697,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 603762084}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1251996203
 MonoBehaviour:
@@ -736,8 +748,8 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1923700317}
   - {fileID: 1052244677}
+  - {fileID: 1923700317}
   - {fileID: 1679920850}
   m_Father: {fileID: 417609469}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1133,6 +1145,7 @@ MonoBehaviour:
   _constructionCost: 0
   _demolitionCost: 0
   _monthlyMaintenance: 0
+  _monthlyWages: 100
   _level: 1
 --- !u!114 &1645708654
 MonoBehaviour:
@@ -1154,9 +1167,12 @@ MonoBehaviour:
   _constructionCost: 0
   _demolitionCost: 0
   _monthlyMaintenance: 0
+  _monthlyWages: 100
   _level: 1
   _recipe: {fileID: 0}
   _storageCapacity: 100
+  _sellingPrice: 0
+  _autoSell: 0
   _connectedBuildings: []
 --- !u!212 &1645708655
 SpriteRenderer:
@@ -1207,7 +1223,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -8410000969848720790, guid: e04c877438e258644bbd423725ee003d, type: 3}
+  m_Sprite: {fileID: 6437738476519406127, guid: 88750e752ba01844ea04bb255b01d110, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -2402,5 +2418,6 @@ SceneRoots:
   - {fileID: 603762084}
   - {fileID: 417609469}
   - {fileID: 853529000}
-  - {fileID: 2004511751}
   - {fileID: 1645708656}
+  - {fileID: 2004511751}
+  - {fileID: 1251996202}
