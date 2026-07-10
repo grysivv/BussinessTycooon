@@ -555,8 +555,8 @@ public class UIManager : MonoBehaviour
         _buildingInfoWindow.style.top = new Length(50, LengthUnit.Percent);
         _buildingInfoWindow.style.translate = new Translate(
             new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
-        _buildingInfoWindow.style.width = 740;
-        _buildingInfoWindow.style.maxHeight = 540;
+        _buildingInfoWindow.style.width = 840;
+        _buildingInfoWindow.style.maxHeight = 600;
         _buildingInfoWindow.style.backgroundColor = UITheme.PanelBg;
         _buildingInfoWindow.style.SetBorder(UITheme.BorderStrong);
         _buildingInfoWindow.style.SetRadius(8);
@@ -572,10 +572,12 @@ public class UIManager : MonoBehaviour
 
         var headerText = new VisualElement();
         headerText.style.flexGrow = 1;
+        headerText.style.justifyContent = Justify.Center;
 
         _windowSubtitleLabel = new Label("");
         _windowSubtitleLabel.style.color = UITheme.TextHeader;
         _windowSubtitleLabel.style.fontSize = 10;
+        _windowSubtitleLabel.style.letterSpacing = 1.5f;
 
         _windowTitleLabel = new Label("");
         _windowTitleLabel.style.color = UITheme.TextPrimary;
@@ -585,8 +587,13 @@ public class UIManager : MonoBehaviour
         headerText.Add(_windowSubtitleLabel);
         headerText.Add(_windowTitleLabel);
 
+        var spacer = new VisualElement();
+        spacer.style.width = 34;
+
         var closeBtn = CreateToolbarButton("✕", CloseBuildingInfoWindow);
         closeBtn.style.width = 34;
+        closeBtn.style.height = 30;
+        closeBtn.style.marginRight = -10;
         AddHoverEffect(closeBtn, Color.clear, UITheme.CardBgHover);
 
         headerBar.Add(headerText);
@@ -661,17 +668,21 @@ public class UIManager : MonoBehaviour
         // === UKŁAD DWUKOLUMNOWY ===
         var columns = new VisualElement();
         columns.style.flexDirection = FlexDirection.Row;
+        columns.style.width = Length.Percent(100);
+        columns.style.minHeight = 300;
         _infoBody.Add(columns);
 
         var leftColumn = new VisualElement();
         leftColumn.style.flexGrow = 1;
         leftColumn.style.flexBasis = 0;
-        leftColumn.style.marginRight = 10;
+        leftColumn.style.minWidth = 0;
+        leftColumn.style.marginRight = 12;
 
         var rightColumn = new VisualElement();
         rightColumn.style.flexGrow = 1;
         rightColumn.style.flexBasis = 0;
-        rightColumn.style.marginLeft = 10;
+        rightColumn.style.minWidth = 0;
+        rightColumn.style.marginLeft = 12;
 
         columns.Add(leftColumn);
         columns.Add(rightColumn);
@@ -814,19 +825,35 @@ public class UIManager : MonoBehaviour
     /// <summary>Minimalne przemalowanie domyślnego suwaka Unity pod motyw dashboardu.</summary>
     private static void StyleSlider(Slider slider)
     {
+        slider.style.height = 28;
+        slider.style.marginBottom = 8;
+
+        var container = slider.Q<VisualElement>("unity-container");
+        if (container != null)
+        {
+            container.style.height = 28;
+        }
+
         var tracker = slider.Q<VisualElement>("unity-tracker");
         if (tracker != null)
         {
             tracker.style.backgroundColor = UITheme.CardBgActive;
-            tracker.style.SetBorder(Color.clear, 0);
+            tracker.style.height = 4;
+            tracker.style.borderTopWidth = 0;
+            tracker.style.borderBottomWidth = 0;
+            tracker.style.borderLeftWidth = 0;
+            tracker.style.borderRightWidth = 0;
             tracker.style.SetRadius(2);
         }
+
         var dragger = slider.Q<VisualElement>("unity-dragger");
         if (dragger != null)
         {
             dragger.style.backgroundColor = UITheme.Accent;
+            dragger.style.width = 14;
+            dragger.style.height = 14;
             dragger.style.SetBorder(Color.clear, 0);
-            dragger.style.SetRadius(6);
+            dragger.style.SetRadius(7);
         }
     }
 
@@ -834,13 +861,31 @@ public class UIManager : MonoBehaviour
     private static void StyleToggle(Toggle toggle)
     {
         toggle.style.color = UITheme.TextPrimary;
+        toggle.style.fontSize = 12;
+
         var checkmark = toggle.Q<VisualElement>("unity-checkmark");
         if (checkmark != null)
         {
             checkmark.style.backgroundColor = UITheme.InsetBg;
-            checkmark.style.SetBorder(UITheme.Border);
-            checkmark.style.SetRadius(3);
+            checkmark.style.borderTopWidth = 1;
+            checkmark.style.borderBottomWidth = 1;
+            checkmark.style.borderLeftWidth = 1;
+            checkmark.style.borderRightWidth = 1;
+            checkmark.style.borderTopColor = UITheme.Border;
+            checkmark.style.borderBottomColor = UITheme.Border;
+            checkmark.style.borderLeftColor = UITheme.Border;
+            checkmark.style.borderRightColor = UITheme.Border;
+            checkmark.style.SetRadius(4);
             checkmark.style.unityBackgroundImageTintColor = UITheme.Accent;
+        }
+
+        var input = toggle.Q<VisualElement>("unity-input");
+        if (input != null)
+        {
+            input.style.borderTopWidth = 0;
+            input.style.borderBottomWidth = 0;
+            input.style.borderLeftWidth = 0;
+            input.style.borderRightWidth = 0;
         }
     }
 
