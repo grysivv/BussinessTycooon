@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingData
   id: farm_wheat
   displayName: Wheat Farm
-  icon: {fileID: 6437738476519406127, guid: f5aecdc157116684db73167130399a5b, type: 3}
+  icon: {fileID: 21300000, guid: 696d767fdf5ff6344a1cf1337d05237f, type: 3}
   prefab: {fileID: 1194812570980824487, guid: 796d940ba9885b7478a143144e5f1198, type: 3}
   footprint: {x: 1, y: 1}
   constructionCost: 1200
