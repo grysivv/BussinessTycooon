@@ -54,7 +54,7 @@ public class UIManager : MonoBehaviour
     private Label _panelPaybackLabel;
     private Label _panelMonthlyProfitLabel;
     private Label _panelAvgThroughputLabel;
-    private Slider _panelPriceSlider;
+    private MiniSlider _panelPriceSlider;
     private TextField _panelPriceField;
 
     void Awake()
@@ -230,6 +230,7 @@ public class UIManager : MonoBehaviour
         btn.style.paddingLeft = 12;
         btn.style.paddingRight = 12;
         btn.style.height = 28;
+        btn.style.unityTextAlign = TextAnchor.MiddleCenter;
         return btn;
     }
 
@@ -365,15 +366,27 @@ public class UIManager : MonoBehaviour
             foreach (var product in productDb.AllProducts)
             {
                 string productId = product.id;
-                var toggle = new Toggle(product.name) { value = true };
-                toggle.style.marginBottom = 4;
-                StyleToggle(toggle);
-                toggle.RegisterValueChangedCallback(evt =>
+
+                var filterRow = new VisualElement();
+                filterRow.style.flexDirection = FlexDirection.Row;
+                filterRow.style.justifyContent = Justify.SpaceBetween;
+                filterRow.style.alignItems = Align.Center;
+                filterRow.style.marginBottom = 8;
+
+                var filterLabel = new Label(product.name);
+                filterLabel.style.color = UITheme.TextPrimary;
+                filterLabel.style.fontSize = 12;
+
+                var filterSwitch = new MiniSwitch(true);
+                filterSwitch.ValueChanged += visible =>
                 {
                     if (_dashboardCards.TryGetValue(productId, out var card))
-                        card.style.display = evt.newValue ? DisplayStyle.Flex : DisplayStyle.None;
-                });
-                leftCol.Add(toggle);
+                        card.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+                };
+
+                filterRow.Add(filterLabel);
+                filterRow.Add(filterSwitch);
+                leftCol.Add(filterRow);
             }
         }
 
@@ -602,6 +615,7 @@ public class UIManager : MonoBehaviour
         closeBtn.style.SetPadding(0, 0);
         closeBtn.style.marginLeft = 12;
         closeBtn.style.alignSelf = Align.Center;
+        closeBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
         AddHoverEffect(closeBtn, Color.clear, UITheme.CardBgHover);
 
         headerBar.Add(headerText);
@@ -741,30 +755,39 @@ public class UIManager : MonoBehaviour
         sliderCaption.style.marginBottom = 4;
         rightColumn.Add(sliderCaption);
 
-        _panelPriceSlider = new Slider(25f, 125f, SliderDirection.Horizontal);
-        _panelPriceSlider.style.marginBottom = 8;
-        StyleSlider(_panelPriceSlider);
-        rightColumn.Add(_panelPriceSlider);
+        // Suwak + pole ceny w jednym wierszu (styl dashboardu)
+        var priceRow = new VisualElement();
+        priceRow.style.flexDirection = FlexDirection.Row;
+        priceRow.style.alignItems = Align.Center;
+        priceRow.style.marginBottom = 12;
+
+        _panelPriceSlider = new MiniSlider(25f, 125f);
+        _panelPriceSlider.style.flexGrow = 1;
+        _panelPriceSlider.style.marginRight = 10;
 
         _panelPriceField = new TextField();
         _panelPriceField.value = "$0.00";
-        _panelPriceField.style.height = 28;
-        _panelPriceField.style.marginBottom = 12;
+        _panelPriceField.style.width = 90;
+        _panelPriceField.style.height = 26;
+        _panelPriceField.style.flexShrink = 0;
         StyleTextFieldInput(_panelPriceField);
-        rightColumn.Add(_panelPriceField);
 
-        _panelPriceSlider.RegisterValueChangedCallback(evt =>
+        priceRow.Add(_panelPriceSlider);
+        priceRow.Add(_panelPriceField);
+        rightColumn.Add(priceRow);
+
+        _panelPriceSlider.ValueChanged += newPercent =>
         {
             if (_currentSelectedBuilding is ProductionBuilding prodBuilding && prodBuilding.Recipe != null)
             {
                 var productDb = EconomyManager.Instance?.ProductDatabase;
                 var productData = productDb?.GetById(prodBuilding.Recipe.outputProductId);
                 float basePrice = productData?.basePrice ?? 1f;
-                float actualPrice = (evt.newValue / 100f) * basePrice;
+                float actualPrice = (newPercent / 100f) * basePrice;
                 prodBuilding.SetSellingPrice(actualPrice);
                 _panelPriceField.SetValueWithoutNotify($"${actualPrice:F2}");
             }
-        });
+        };
 
         _panelPriceField.RegisterValueChangedCallback(evt =>
         {
@@ -789,17 +812,22 @@ public class UIManager : MonoBehaviour
             AddSeparator(rightColumn);
             AddSectionLabel(rightColumn, "SPRZEDAŻ");
 
-            var autoSellToggle = new Toggle("Auto-sprzedaż");
-            autoSellToggle.value = pb.AutoSell;
-            autoSellToggle.style.width = Length.Percent(100);
-            autoSellToggle.style.height = 24;
-            autoSellToggle.style.marginBottom = 12;
-            StyleToggle(autoSellToggle);
-            autoSellToggle.RegisterValueChangedCallback(evt =>
-            {
-                pb.SetAutoSell(evt.newValue);
-            });
-            rightColumn.Add(autoSellToggle);
+            var autoSellRow = new VisualElement();
+            autoSellRow.style.flexDirection = FlexDirection.Row;
+            autoSellRow.style.justifyContent = Justify.SpaceBetween;
+            autoSellRow.style.alignItems = Align.Center;
+            autoSellRow.style.marginBottom = 12;
+
+            var autoSellLabel = new Label("Auto-sprzedaż");
+            autoSellLabel.style.color = UITheme.TextPrimary;
+            autoSellLabel.style.fontSize = 12;
+
+            var autoSellSwitch = new MiniSwitch(pb.AutoSell);
+            autoSellSwitch.ValueChanged += v => pb.SetAutoSell(v);
+
+            autoSellRow.Add(autoSellLabel);
+            autoSellRow.Add(autoSellSwitch);
+            rightColumn.Add(autoSellRow);
 
             var sellBtn = new Button(() =>
             {
@@ -813,6 +841,9 @@ public class UIManager : MonoBehaviour
             sellBtn.style.SetBorder(new Color(0.204f, 0.827f, 0.600f, 0.3f));
             sellBtn.style.SetRadius(6);
             sellBtn.style.height = 30;
+            sellBtn.style.SetPadding(0, 0);
+            sellBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            sellBtn.style.fontSize = 12;
             AddHoverEffect(sellBtn, UITheme.PositiveSoft, new Color(0.204f, 0.827f, 0.600f, 0.22f));
             rightColumn.Add(sellBtn);
         }
@@ -824,94 +855,15 @@ public class UIManager : MonoBehaviour
     private static void StyleTextFieldInput(TextField field)
     {
         field.style.color = UITheme.TextPrimary;
+        field.style.fontSize = 12;
         var input = field.Q<VisualElement>("unity-text-input");
         if (input == null) return;
         input.style.backgroundColor = UITheme.InsetBg;
         input.style.color = UITheme.TextPrimary;
         input.style.SetBorder(UITheme.Border);
         input.style.SetRadius(6);
-    }
-
-    /// <summary>Minimalne przemalowanie domyślnego suwaka Unity pod motyw dashboardu.</summary>
-    private static void StyleSlider(Slider slider)
-    {
-        slider.style.height = 20;
-        slider.style.marginBottom = 12;
-        slider.style.paddingTop = 8;
-        slider.style.paddingBottom = 8;
-
-        var input = slider.Q<VisualElement>("unity-input");
-        if (input != null)
-        {
-            input.style.height = 20;
-        }
-
-        var tracker = slider.Q<VisualElement>("unity-tracker");
-        if (tracker != null)
-        {
-            tracker.style.backgroundColor = UITheme.CardBgActive;
-            tracker.style.height = 4;
-            tracker.style.borderTopWidth = 0;
-            tracker.style.borderBottomWidth = 0;
-            tracker.style.borderLeftWidth = 0;
-            tracker.style.borderRightWidth = 0;
-            tracker.style.SetRadius(2);
-            tracker.style.marginTop = 0;
-            tracker.style.marginBottom = 0;
-        }
-
-        var dragger = slider.Q<VisualElement>("unity-dragger");
-        if (dragger != null)
-        {
-            dragger.style.backgroundColor = UITheme.Accent;
-            dragger.style.width = 12;
-            dragger.style.height = 12;
-            dragger.style.SetBorder(Color.clear, 0);
-            dragger.style.SetRadius(6);
-            dragger.style.marginTop = 0;
-            dragger.style.marginBottom = 0;
-            dragger.style.position = Position.Relative;
-            dragger.style.top = -4;
-        }
-    }
-
-    /// <summary>Minimalne przemalowanie domyślnego checkboxa Unity pod motyw dashboardu.</summary>
-    private static void StyleToggle(Toggle toggle)
-    {
-        toggle.style.color = UITheme.TextPrimary;
-        toggle.style.fontSize = 12;
-        toggle.style.paddingLeft = 0;
-        toggle.style.paddingRight = 0;
-
-        var input = toggle.Q<VisualElement>("unity-input");
-        if (input != null)
-        {
-            input.style.width = 16;
-            input.style.height = 16;
-            input.style.borderTopWidth = 1;
-            input.style.borderBottomWidth = 1;
-            input.style.borderLeftWidth = 1;
-            input.style.borderRightWidth = 1;
-            input.style.borderTopColor = UITheme.Border;
-            input.style.borderBottomColor = UITheme.Border;
-            input.style.borderLeftColor = UITheme.Border;
-            input.style.borderRightColor = UITheme.Border;
-            input.style.SetRadius(3);
-            input.style.marginRight = 8;
-        }
-
-        var checkmark = toggle.Q<VisualElement>("unity-checkmark");
-        if (checkmark != null)
-        {
-            checkmark.style.unityBackgroundImageTintColor = UITheme.Accent;
-        }
-
-        var label = toggle.Q<Label>("unity-text");
-        if (label != null)
-        {
-            label.style.color = UITheme.TextPrimary;
-            label.style.fontSize = 12;
-        }
+        input.style.paddingLeft = 8;
+        input.style.paddingRight = 8;
     }
 
     private void RefreshBuildingInfoPanel(Building building)
